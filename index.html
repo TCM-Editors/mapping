@@ -5,12 +5,89 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Store Mapping Dashboard</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* Additional styles for skeleton loading, horizontal scrolling, and notifications */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #1a2526;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 9999;
+        }
+        #loading-screen.hidden {
+            display: none;
+        }
+        .skeleton-row td {
+            background: #e0e0e0;
+            height: 20px;
+            border-radius: 4px;
+            animation: pulse 1.5s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0% { background-color: #e0e0e0; }
+            50% { background-color: #d0d0d0; }
+            100% { background-color: #e0e0e0; }
+        }
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #00d1b2;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Horizontal scrolling for tables on mobile */
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        table {
+            min-width: 100%;
+            width: max-content; /* Ensures table takes up necessary width */
+        }
+        /* Notification styles */
+        #admin-notification-form {
+            margin-bottom: 1rem;
+        }
+        #admin-notification-input {
+            width: 100%;
+            padding: 0.5rem;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            margin-bottom: 0.5rem;
+        }
+        #user-notification {
+            display: none;
+            background: #e0f7fa;
+            color: #006064;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            animation: fadeIn 1s ease-in-out;
+        }
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(-10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+    </style>
 </head>
 <body>
     <div id="toast" class="toast hidden"></div>
     <div id="loading-screen">
         <div class="loading-spinner"></div>
-        <p>Loading Application...</p>
+        <p id="loading-message">Loading Application...</p>
     </div>
 
     <div class="container hidden" id="app-container">
@@ -26,6 +103,9 @@
 
         <main>
             <section id="paper-finance-content" class="content-section">
+                <!-- Notification display for non-admins -->
+                <div id="user-notification"></div>
+
                 <div id="form-section" class="card">
                     <header>
                         <h3>Mapping Request Form</h3>
@@ -182,7 +262,12 @@
                                 <th class="table-actions-column">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="mapping-table-body"></tbody>
+                        <tbody id="mapping-table-body">
+                            <!-- Skeleton rows while loading -->
+                            <tr class="skeleton-row"><td colspan="11"></td></tr>
+                            <tr class="skeleton-row"><td colspan="11"></td></tr>
+                            <tr class="skeleton-row"><td colspan="11"></td></tr>
+                        </tbody>
                     </table>
                 </div>
 
@@ -218,7 +303,12 @@
                                 <th class="table-actions-column">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="pinelabs-table-body"></tbody>
+                        <tbody id="pinelabs-table-body">
+                            <!-- Skeleton rows while loading -->
+                            <tr class="skeleton-row"><td colspan="9"></td></tr>
+                            <tr class="skeleton-row"><td colspan="9"></td></tr>
+                            <tr class="skeleton-row"><td colspan="9"></td></tr>
+                        </tbody>
                     </table>
                 </div>
             </section>
@@ -243,6 +333,11 @@
                             <button id="download-overall-main-excel" class="btn btn-secondary">Download Excel</button>
                         </div>
                     </header>
+                    <!-- Admin notification input form -->
+                    <form id="admin-notification-form" class="hidden">
+                        <textarea id="admin-notification-input" placeholder="Enter notification for non-admin users..." maxlength="500"></textarea>
+                        <button type="submit" class="btn btn-primary">Send Notification</button>
+                    </form>
                     <table>
                         <thead>
                             <tr>
@@ -260,7 +355,12 @@
                                 <th class="table-actions-column">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="overall-main-mapping-table-body"></tbody>
+                        <tbody id="overall-main-mapping-table-body">
+                            <!-- Skeleton rows while loading -->
+                            <tr class="skeleton-row"><td colspan="12"></td></tr>
+                            <tr class="skeleton-row"><td colspan="12"></td></tr>
+                            <tr class="skeleton-row"><td colspan="12"></td></tr>
+                        </tbody>
                     </table>
                 </div>
                 <div class="table-container">
@@ -279,6 +379,7 @@
                                     <option value="Others">Others</option>
                                 </select>
                             </div>
+                            <button id="load-pinelabs-details" class="btn btn-secondary">Load Pine Labs Details</button>
                             <button id="download-overall-pinelabs-excel" class="btn btn-secondary">Download Excel</button>
                         </div>
                     </header>
@@ -296,7 +397,12 @@
                                 <th class="table-actions-column">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="overall-pinelabs-table-body"></tbody>
+                        <tbody id="overall-pinelabs-table-body">
+                            <!-- Skeleton rows while loading -->
+                            <tr class="skeleton-row"><td colspan="9"></td></tr>
+                            <tr class="skeleton-row"><td colspan="9"></td></tr>
+                            <tr class="skeleton-row"><td colspan="9"></td></tr>
+                        </tbody>
                     </table>
                 </div>
             </section>
@@ -305,10 +411,13 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+        // Initialize Supabase client
         window.supabaseClient = supabase.createClient(
             'https://ecjkxnlejaiupmlyitgu.supabase.co',
             'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVjamt4bmxlamFpdXBtbHlpdGd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc4OTIzMjAsImV4cCI6MjA2MzQ2ODMyMH0.Edchr54scHNwpy_34zNc_0MJpYArzV7-cbF87TBGwnM'
         );
+
+        // Toast function
         window.showToast = function (message, type) {
             const toast = document.getElementById('toast');
             if (toast) {
@@ -321,6 +430,7 @@
             }
         };
 
+        // Check authentication and initialize app
         window.checkAuthenticationAndLoad = async () => {
             const loadingScreen = document.getElementById('loading-screen');
             const appContainer = document.getElementById('app-container');
@@ -329,9 +439,9 @@
             if (error || !session) {
                 window.location.href = 'login.html';
             } else {
-                await initializeApp();
                 appContainer.classList.remove('hidden');
                 loadingScreen.classList.add('hidden');
+                await initializeApp(); // This will be defined in index.js
             }
         };
         window.checkAuthenticationAndLoad();
