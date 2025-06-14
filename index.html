@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store Mapping Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="toast" class="toast hidden"></div>
+    <div id="loading-screen">
+        <div class="loading-spinner"></div>
+        <p>Loading Application...</p>
+    </div>
+
+    <div class="container hidden" id="app-container">
+        <header class="flex justify-between items-center mb-xxl">
+            <h1 class="mb-0">Store Mapping Dashboard</h1>
+            <button id="logout-btn" class="btn btn-outline">Logout</button>
+        </header>
+
+        <div class="main-tab-container">
+            <button id="main-tab-paper" class="main-tab active">Paper Finance and Pinelab Mapping</button>
+            <button id="main-tab-overall" class="main-tab">Overall Mapping Request</button>
+        </div>
+
+        <main>
+            <section id="paper-finance-content" class="content-section">
+                <div id="form-section" class="card">
+                    <header>
+                        <h3>Mapping Request Form</h3>
+                    </header>
+                    <form id="mapping-form" novalidate>
+                        <input type="hidden" id="mapping-id">
+                        <input type="hidden" id="active-tab" value="financier">
+
+                        <div class="grid grid-cols-1-md-2 gap-lg mb-lg">
+                            <div class="form-group">
+                                <label for="store-name">Store Name</label>
+                                <select id="store-name" class="form-control" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="brand">Brand</label>
+                                <select id="brand" class="form-control" required>
+                                    <option value="">Select Brand</option>
+                                    <option value="Samsung">Samsung</option>
+                                    <option value="Apple">Apple</option>
+                                    <option value="Oneplus">Oneplus</option>
+                                    <option value="Oppo">Oppo</option>
+                                    <option value="Vivo">Vivo</option>
+                                    <option value="Others">Others</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="apple-code-section" class="form-group hidden mb-lg">
+                            <label for="apple-code">Brand Code (Apple Only)</label>
+                            <input type="text" id="apple-code" class="form-control" placeholder="Enter Apple Brand Code">
+                        </div>
+
+                        <div class="tab-container">
+                            <button type="button" id="financier-tab" class="tab active">Financiers</button>
+                            <button type="button" id="pinelabs-tab" class="tab">Pine Labs</button>
+                        </div>
+
+                        <div id="financiers-section">
+                            <div class="form-group mb-lg">
+                                <label for="financier">Financier</label>
+                                <select id="financier" class="form-control" required>
+                                    <option value="">Select Financier</option>
+                                    <option value="bajaj">Bajaj</option>
+                                    <option value="hdfc">HDFC</option>
+                                    <option value="hdb">HDB</option>
+                                    <option value="idfc">IDFC</option>
+                                    <option value="kotak">Kotak</option>
+                                    <option value="tvs">TVS</option>
+                                    <option value="benow">Benow</option>
+                                    <option value="icici">ICICI</option>
+                                    <option value="home_credit">Home Credit</option>
+                                </select>
+                            </div>
+                            <div id="bajaj-code-section" class="form-group hidden"><label for="bajaj-code">Bajaj Code</label><input type="text" id="bajaj-code" class="form-control" placeholder="Enter Bajaj Code"></div>
+                            <div id="hdfc-code-section" class="form-group hidden"><label for="hdfc-code">HDFC Code</label><input type="text" id="hdfc-code" class="form-control" placeholder="Enter HDFC Code"></div>
+                            <div id="hdb-code-section" class="form-group hidden"><label for="hdb-code">HDB Code</label><input type="text" id="hdb-code" class="form-control" placeholder="Enter HDB Code"></div>
+                            <div id="idfc-code-section" class="form-group hidden"><label for="idfc-code">IDFC Code</label><input type="text" id="idfc-code" class="form-control" placeholder="Enter IDFC Code"></div>
+                            <div id="kotak-code-section" class="form-group hidden"><label for="kotak-code">Kotak Code</label><input type="text" id="kotak-code" class="form-control" placeholder="Enter Kotak Code"></div>
+                            <div id="tvs-code-section" class="form-group hidden"><label for="tvs-code">TVS Code</label><input type="text" id="tvs-code" class="form-control" placeholder="Enter TVS Code"></div>
+                            <div id="benow-code-section" class="form-group hidden"><label for="benow-code">Benow Code</label><input type="text" id="benow-code" class="form-control" placeholder="Enter Benow Code"></div>
+                            <div id="icici-code-section" class="form-group hidden"><label for="icici-code">ICICI Code</label><input type="text" id="icici-code" class="form-control" placeholder="Enter ICICI Code"></div>
+                            <div id="home-credit-code-section" class="form-group hidden"><label for="home-credit-code">Home Credit Code</label><input type="text" id="home-credit-code" class="form-control" placeholder="Enter Home Credit Code"></div>
+                        </div>
+
+                        <div id="pinelabs-section" class="hidden">
+                            <div class="flex justify-between items-center mb-md">
+                                <label class="mb-0 font-bold">Pine Labs Machine Details (Max 3)</label>
+                                <button type="button" id="add-pinelabs" class="btn btn-outline" style="padding: 0.5rem 1rem;">+ Add More</button>
+                            </div>
+                            <div id="pinelabs-entries" class="space-y-md">
+                                <div class="pinelabs-entry grid grid-cols-1-md-4 gap-md">
+                                    <div class="form-group">
+                                        <label class="hidden md:block">POS ID</label>
+                                        <input type="text" name="pos_id" placeholder="POS ID" class="form-control pinelabs-pos-id">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="hidden md:block">TID</label>
+                                        <input type="text" name="tid" placeholder="TID" class="form-control pinelabs-tid">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="hidden md:block">Serial No</label>
+                                        <input type="text" name="serial_no" placeholder="Serial No" class="form-control pinelabs-serial-no">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="hidden md:block">Store ID (PL)</label>
+                                        <input type="text" name="store_id" placeholder="Store ID" class="form-control pinelabs-store-id">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1-md-2 gap-lg mt-lg">
+                            <div class="form-group">
+                                <label for="state">State</label>
+                                <input type="text" id="state" class="form-control" placeholder="Enter State" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="asm-name">ASM Name</label>
+                                <input type="text" id="asm-name" class="form-control" placeholder="Enter ASM Name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="mail-id">Mail ID</label>
+                                <input type="email" id="mail-id" class="form-control" placeholder="Enter Mail ID" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="requested-by">Requested By</label>
+                                <input type="text" id="requested-by" class="form-control" placeholder="Enter Your Name" required>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-md mt-lg">
+                            <button type="submit" id="submit-btn" class="btn btn-primary">
+                                <span id="submit-text">Submit Mapping Request</span>
+                                <span id="submit-loading" class="loading-spinner hidden" style="width: 1.2rem; height: 1.2rem;"></span>
+                            </button>
+                            <button type="button" id="cancel-edit-btn" class="btn btn-outline hidden">Cancel Edit</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="table-container">
+                    <header class="flex justify-between items-center table-header-title">
+                        <h3>Your Mapping Requests</h3>
+                        <div class="flex items-center gap-md">
+                            <div class="filter-controls">
+                                <input type="search" id="yourMappingsSearch" class="form-control" placeholder="Search your mappings...">
+                                <select id="yourMappingsBrandFilter" class="form-control">
+                                    <option value="">All Brands</option>
+                                    <option value="Samsung">Samsung</option>
+                                    <option value="Apple">Apple</option>
+                                    <option value="Oneplus">Oneplus</option>
+                                    <option value="Oppo">Oppo</option>
+                                    <option value="Vivo">Vivo</option>
+                                    <option value="Others">Others</option>
+                                </select>
+                            </div>
+                            <button id="download-excel" class="btn btn-secondary">Download Excel</button>
+                        </div>
+                    </header>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Store Name</th>
+                                <th>ASM</th>
+                                <th>Mail ID</th>
+                                <th>Brand</th>
+                                <th>Brand Code</th>
+                                <th>Financier</th>
+                                <th>Financier Code</th>
+                                <th>Date</th>
+                                <th>Requested By</th>
+                                <th class="table-actions-column">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mapping-table-body"></tbody>
+                    </table>
+                </div>
+
+                <div class="table-container">
+                    <header class="table-header-title">
+                        <h3>Your Pine Labs Details</h3>
+                    </header>
+                    <div class="p-lg">
+                        <div class="filter-controls">
+                            <input type="search" id="yourPinelabsSearch" class="form-control" placeholder="Search your Pine Labs details...">
+                            <select id="yourPinelabsBrandFilter" class="form-control">
+                                <option value="">All Brands</option>
+                                <option value="Samsung">Samsung</option>
+                                <option value="Apple">Apple</option>
+                                <option value="Oneplus">Oneplus</option>
+                                <option value="Oppo">Oppo</option>
+                                <option value="Vivo">Vivo</option>
+                                <option value="Others">Others</option>
+                            </select>
+                        </div>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>PL ID</th>
+                                <th>Mapping ID</th>
+                                <th>Store Name</th>
+                                <th>Brand</th>
+                                <th>POS ID</th>
+                                <th>TID</th>
+                                <th>Serial No</th>
+                                <th>Store ID (PL)</th>
+                                <th class="table-actions-column">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pinelabs-table-body"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="overall-mapping-content" class="content-section hidden">
+                <div class="table-container">
+                    <header class="flex justify-between items-center table-header-title">
+                        <h3>Overall Main Mapping Requests</h3>
+                        <div class="flex items-center gap-md">
+                            <div class="filter-controls">
+                                <input type="search" id="overallMainMappingsSearch" class="form-control" placeholder="Search all mappings...">
+                                <select id="overallMainMappingsBrandFilter" class="form-control">
+                                    <option value="">All Brands</option>
+                                    <option value="Samsung">Samsung</option>
+                                    <option value="Apple">Apple</option>
+                                    <option value="Oneplus">Oneplus</option>
+                                    <option value="Oppo">Oppo</option>
+                                    <option value="Vivo">Vivo</option>
+                                    <option value="Others">Others</option>
+                                </select>
+                            </div>
+                            <button id="download-overall-main-excel" class="btn btn-secondary">Download Excel</button>
+                        </div>
+                    </header>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Store</th>
+                                <th>State</th>
+                                <th>ASM</th>
+                                <th>Mail ID</th>
+                                <th>Brand</th>
+                                <th>Brand Code</th>
+                                <th>Financier</th>
+                                <th>Financier Code</th>
+                                <th>Req. By</th>
+                                <th>Date</th>
+                                <th class="table-actions-column">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="overall-main-mapping-table-body"></tbody>
+                    </table>
+                </div>
+                <div class="table-container">
+                    <header class="flex justify-between items-center table-header-title">
+                        <h3>Overall Pine Labs Details</h3>
+                        <div class="flex items-center gap-md">
+                            <div class="filter-controls">
+                                <input type="search" id="overallPinelabsSearch" class="form-control" placeholder="Search all Pine Labs details...">
+                                <select id="overallPinelabsBrandFilter" class="form-control">
+                                    <option value="">All Brands</option>
+                                    <option value="Samsung">Samsung</option>
+                                    <option value="Apple">Apple</option>
+                                    <option value="Oneplus">Oneplus</option>
+                                    <option value="Oppo">Oppo</option>
+                                    <option value="Vivo">Vivo</option>
+                                    <option value="Others">Others</option>
+                                </select>
+                            </div>
+                            <button id="download-overall-pinelabs-excel" class="btn btn-secondary">Download Excel</button>
+                        </div>
+                    </header>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>PL ID</th>
+                                <th>Mapping ID</th>
+                                <th>Store Name</th>
+                                <th>Brand</th>
+                                <th>POS ID</th>
+                                <th>TID</th>
+                                <th>Serial No</th>
+                                <th>Store ID (PL)</th>
+                                <th class="table-actions-column">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="overall-pinelabs-table-body"></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        window.supabaseClient = supabase.createClient(
+            'https://ecjkxnlejaiupmlyitgu.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVjamt4bmxlamFpdXBtbHlpdGd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc4OTIzMjAsImV4cCI6MjA2MzQ2ODMyMH0.Edchr54scHNwpy_34zNc_0MJpYArzV7-cbF87TBGwnM'
+        );
+        window.showToast = function (message, type) {
+            const toast = document.getElementById('toast');
+            if (toast) {
+                toast.textContent = message;
+                toast.className = 'toast show';
+                toast.classList.add(type);
+                setTimeout(() => {
+                    toast.className = 'toast hidden';
+                }, 3000);
+            }
+        };
+
+        window.checkAuthenticationAndLoad = async () => {
+            const loadingScreen = document.getElementById('loading-screen');
+            const appContainer = document.getElementById('app-container');
+
+            const { data: { session } = {}, error } = await window.supabaseClient.auth.getSession();
+            if (error || !session) {
+                window.location.href = 'login.html';
+            } else {
+                await initializeApp();
+                appContainer.classList.remove('hidden');
+                loadingScreen.classList.add('hidden');
+            }
+        };
+        window.checkAuthenticationAndLoad();
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="navigation.js"></script>
+    <script src="pinelabs.js"></script>
+    <script src="index.js"></script>
+</body>
+</html>
