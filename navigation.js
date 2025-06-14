@@ -1,35 +1,58 @@
-const mainTabPaper = document.getElementById('main-tab-paper');
-const mainTabOverall = document.getElementById('main-tab-overall');
-const paperFinanceContent = document.getElementById('paper-finance-content');
-const overallMappingContent = document.getElementById('overall-mapping-content');
-const overallMainMappingsSearchInput = document.getElementById('overallMainMappingsSearch');
-const overallMainMappingsBrandFilter = document.getElementById('overallMainMappingsBrandFilter');
-const overallPinelabsSearchInput = document.getElementById('overallPinelabsSearch');
-const overallPinelabsBrandFilter = document.getElementById('overallPinelabsBrandFilter');
-const downloadOverallMainExcelBtn = document.getElementById('download-overall-main-excel');
-const downloadOverallPinelabsExcelBtn = document.getElementById('download-overall-pinelabs-excel');
+// State management
+const appState = {
+    currentUserRole: null,
+    currentOverallMainMappingsData: [],
+    currentOverallPinelabsData: [],
+    filteredOverallMainMappingsForExcel: [],
+};
 
-const mappingForm = document.getElementById('mapping-form');
-const formSection = document.getElementById('form-section');
+// DOM elements
+const elements = {
+    mainTabPaper: document.getElementById('main-tab-paper'),
+    mainTabOverall: document.getElementById('main-tab-overall'),
+    paperFinanceContent: document.getElementById('paper-finance-content'),
+    overallMappingContent: document.getElementById('overall-mapping-content'),
+    overallMainMappingsSearchInput: document.getElementById('overallMainMappingsSearch'),
+    overallMainMappingsBrandFilter: document.getElementById('overallMainMappingsBrandFilter'),
+    overallPinelabsSearchInput: document.getElementById('overallPinelabsSearch'),
+    overallPinelabsBrandFilter: document.getElementById('overallPinelabsBrandFilter'),
+    downloadOverallMainExcelBtn: document.getElementById('download-overall-main-excel'),
+    downloadOverallPinelabsExcelBtn: document.getElementById('download-overall-pinelabs-excel'),
+    mappingForm: document.getElementById('mapping-form'),
+    formSection: document.getElementById('form-section'),
+    loadingMessage: document.getElementById('loading-message'), // Assumes a <div id="loading-message"> for dynamic loading text
+};
 
-let currentUserRole = null;
-window.currentOverallMainMappingsData = []; // Data for "Overall Main Mappings"
-window.currentOverallPinelabsData = [];   // Data for "Overall Pine Labs Details"
-window.filteredOverallMainMappingsForExcel = []; // Data for Excel download for Overall Main
+// Utility: Debounce function
+const debounce = (func, delay) => {
+    let timeoutId;
+    return (...args) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => func(...args), delay);
+    };
+};
 
-window.checkUserRole = async () => {
-    if (currentUserRole !== null && currentUserRole !== 'error') return currentUserRole;
+// Update loading message
+const updateLoadingMessage = (message) => {
+    if (elements.loadingMessage) {
+        elements.loadingMessage.textContent = message;
+    }
+};
+
+// Check user role (cached with localStorage)
+const checkUserRole = async () => {
+    const cachedRole = localStorage.getItem('userRole');
+    if (cachedRole && cachedRole !== 'error') {
+        appState.currentUserRole = cachedRole;
+        return cachedRole;
+    }
+
+    updateLoadingMessage('Checking user role...');
     try {
-        const { data, error: authErrorResult } = await window.supabaseClient.auth.getUser();
+        const { data, error: authError } = await window.supabaseClient.auth.getUser();
+        if (authError) throw new Error('Auth error: ' + authError.message);
         const user = data?.user;
-
-        if (authErrorResult) {
-            console.error('Supabase Auth getUser error:', authErrorResult);
-            throw authErrorResult;
-        }
-        if (!user) {
-            throw new Error('User not authenticated.');
-        }
+        if (!user) throw new Error('User not authenticated.');
 
         const { data: userData, error: roleError } = await window.supabaseClient
             .from('user_stores')
@@ -39,311 +62,299 @@ window.checkUserRole = async () => {
             .single();
 
         if (roleError && roleError.code !== 'PGRST116') {
-            console.warn("Could not determine user role from 'user_stores':", roleError.message);
+            console.warn('Role fetch error:', roleError.message);
         }
-        window.userRole = userData?.role || 'user';
-        currentUserRole = window.userRole;
+        appState.currentUserRole = userData?.role || 'user';
+        localStorage.setItem('userRole', appState.currentUserRole);
     } catch (err) {
-        window.showToast('Error verifying user role: ' + err.message, 'error');
-        window.userRole = 'error';
-        currentUserRole = 'error';
+        window.showToast('Error verifying role: ' + err.message, 'error');
+        appState.currentUserRole = 'error';
+        localStorage.setItem('userRole', 'error');
     }
-    return currentUserRole;
+    return appState.currentUserRole;
 };
 
-window.switchMainTab = async (tabName) => {
+// Switch main tab (render UI immediately, load data in background)
+const switchMainTab = async (tabName) => {
+    const userRole = appState.currentUserRole; // Already cached
     document.querySelectorAll('.main-tab').forEach(tab => tab.classList.remove('active'));
-    if (paperFinanceContent) paperFinanceContent.classList.add('hidden');
-    if (overallMappingContent) overallMappingContent.classList.add('hidden');
-
-    await window.checkUserRole();
-    const userRole = await window.checkUserRole();
+    [elements.paperFinanceContent, elements.overallMappingContent].forEach(el => el?.classList.add('hidden'));
 
     if (userRole !== 'admin' && tabName === 'overall') {
-        window.showToast("You do not have permission to view this tab.", "error");
-         if (mainTabPaper) mainTabPaper.classList.add('active'); //Select the paper finance tab
-        if (paperFinanceContent) paperFinanceContent.classList.remove('hidden'); //Show the content related paper finance
-        mainTabOverall.style.display = 'none'; //Hide the overall button to avoid more clicking
+        window.showToast('Permission denied for this tab.', 'error');
+        elements.mainTabPaper?.classList.add('active');
+        elements.paperFinanceContent?.classList.remove('hidden');
+        elements.mainTabOverall.style.display = 'none';
+        elements.formSection.style.display = 'block';
         return;
     }
 
-    if (userRole !== 'admin' && tabName === 'paper')
-    {
-          mainTabOverall.style.display = 'none';
+    if (userRole !== 'admin') {
+        elements.mainTabOverall.style.display = 'none';
+    } else {
+        elements.mainTabOverall.style.display = '';
     }
 
     if (tabName === 'paper') {
-        if (mainTabPaper) mainTabPaper.classList.add('active');
-        if (paperFinanceContent) paperFinanceContent.classList.remove('hidden');
+        elements.mainTabPaper?.classList.add('active');
+        elements.paperFinanceContent?.classList.remove('hidden');
+        elements.formSection.style.display = 'block';
         if (typeof window.loadMappings === 'function') {
-            await window.loadMappings();
+            updateLoadingMessage('Loading Paper Finance data...');
+            window.loadMappings();
         } else {
-            window.showToast("Paper Finance features are unavailable.", "error");
+            window.showToast('Paper Finance features unavailable.', 'error');
         }
     } else if (tabName === 'overall') {
-        if (mainTabOverall) mainTabOverall.classList.add('active');
-        if (overallMappingContent) overallMappingContent.classList.remove('hidden');
-        if (typeof window.loadOverallMainMappings === 'function') await window.loadOverallMainMappings();
-        if (typeof window.loadOverallPinelabsDetails === 'function') await window.loadOverallPinelabsDetails();
+        elements.mainTabOverall?.classList.add('active');
+        elements.overallMappingContent?.classList.remove('hidden');
+        elements.formSection.style.display = 'none';
+        // Load data in background without blocking UI
+        updateLoadingMessage('Loading Overall data...');
+        Promise.all([
+            loadOverallMainMappings(),
+            loadOverallPinelabsDetails(true), // Lazy-load Pine Labs details
+        ]).catch(err => window.showToast('Error loading data: ' + err.message, 'error'));
     }
 };
 
-if (mainTabPaper) mainTabPaper.addEventListener('click', () => {
-    formSection.style.display = 'block'; // Show the form on paper tab click
-    window.switchMainTab('paper');
-});
-if (mainTabOverall) mainTabOverall.addEventListener('click', () => window.switchMainTab('overall'));
-
-window.populateOverallMainMappingsTable = async (mappingsToDisplay, userRole) => {
+// Populate main mappings table (incremental rendering for large datasets)
+const populateOverallMainMappingsTable = async (mappingsToDisplay, userRole) => {
     const tableBody = document.getElementById('overall-main-mapping-table-body');
     if (!tableBody) return;
 
-    ['overall-main-mapping-table-body-initial-loading', 'overall-main-mapping-table-body-no-data', 'overall-main-mapping-table-body-no-data-filter'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.remove();
-    });
+    ['overall-main-mapping-table-body-initial-loading', 'overall-main-mapping-table-body-no-data', 'overall-main-mapping-table-body-no-data-filter']
+        .forEach(id => document.getElementById(id)?.remove());
     tableBody.innerHTML = '';
 
     const { data: { user } = { user: null } } = await window.supabaseClient.auth.getUser();
+    appState.filteredOverallMainMappingsForExcel = mappingsToDisplay || [];
 
-    // Store the currently displayed (filtered) data for Excel export
-    window.filteredOverallMainMappingsForExcel = mappingsToDisplay || [];
+    if (mappingsToDisplay?.length > 0) {
+        const batchSize = 50; // Render 50 rows at a time to avoid blocking
+        for (let i = 0; i < mappingsToDisplay.length; i += batchSize) {
+            const batch = mappingsToDisplay.slice(i, i + batchSize);
+            batch.forEach(row => {
+                const tr = tableBody.insertRow();
+                let financierDisplay = row.financier || '-';
+                let financierCodeDisplay = '-';
+                const requestedDateDisplay = row.requested_date ? new Date(row.requested_date).toLocaleDateString() : '-';
+                const isPurePineLabsMapping = (!row.financier && row.pinelabs_details?.length > 0);
 
-    if (mappingsToDisplay && mappingsToDisplay.length > 0) {
-        mappingsToDisplay.forEach(row => {
-            const tr = tableBody.insertRow();
-            let financierDisplay = row.financier || '-';
-            let financierCodeDisplay = '-';
-            const requestedDateDisplay = row.requested_date ? new Date(row.requested_date).toLocaleDateString() : '-';
-
-            const isPurePineLabsMapping = (row.financier === '' || row.financier === null) && row.pinelabs_details && row.pinelabs_details.length > 0;
-
-            if (row.financier && row.financier !== '') {
-                if (row.financier_code && typeof row.financier_code === 'object') {
-                    const financierKey = row.financier.toLowerCase().replace(/ /g, '_');
-                    financierCodeDisplay = row.financier_code[financierKey] || '-';
-                } else if (typeof row.financier_code === 'string') {
-                    financierCodeDisplay = row.financier_code || '-';
+                if (row.financier) {
+                    if (typeof row.financier_code === 'object') {
+                        const financierKey = row.financier.toLowerCase().replace(/ /g, '_');
+                        financierCodeDisplay = row.financier_code[financierKey] || '-';
+                    } else if (typeof row.financier_code === 'string') {
+                        financierCodeDisplay = row.financier_code || '-';
+                    }
+                } else if (isPurePineLabsMapping) {
+                    financierDisplay = 'Pine Labs';
                 }
-            } else if (isPurePineLabsMapping) {
-                financierDisplay = 'Pine Labs';
-                financierCodeDisplay = '-';
-            } else {
-                financierDisplay = '-';
-            }
 
-            const showActions = userRole === 'admin' || (user && row.user_id === user.id);
-            const actionsHtml = showActions ? `
-                <button class="btn btn-icon-only btn-edit-icon" onclick="window.editMappingOverall(${row.id})" title="Edit"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
-                <button class="btn btn-icon-only btn-delete-icon" onclick="window.deleteOverallMainMapping(${row.id})" title="Delete"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
-            ` : '-';
+                const showActions = userRole === 'admin' || (user && row.user_id === user.id);
+                const actionsHtml = showActions ? `
+                    <button class="btn btn-icon-only btn-edit-icon" onclick="window.editMappingOverall(${row.id})" title="Edit"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
+                    <button class="btn btn-icon-only btn-delete-icon" onclick="window.deleteOverallMainMapping(${row.id})" title="Delete"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                ` : '-';
 
-            // FIX: Added Requested Date to innerHTML
-            tr.innerHTML = `<td class="table-id-column">${row.id}</td><td>${row.store_name || '-'}</td><td>${row.state || '-'}</td><td>${row.asm || '-'}</td><td>${row.mail_id || '-'}</td><td data-brand="${row.brand || ''}">${row.brand || '-'}</td><td>${row.brand === 'Apple' ? (row.brand_code || '-') : '-'}</td><td>${financierDisplay}</td><td>${financierCodeDisplay}</td><td>${row.requested_by || '-'}</td><td class="table-date-column">${requestedDateDisplay}</td><td class="table-actions-column"><div class="action-buttons">${actionsHtml}</div></td>`;
-        });
+                tr.innerHTML = <td class="table-id-column">${row.id}</td><td>${row.store_name || '-'}</td><td>${row.state || '-'}</td><td>${row.asm || '-'}</td><td>${row.mail_id || '-'}</td><td data-brand="${row.brand || ''}">${row.brand || '-'}</td><td>${row.brand === 'Apple' ? (row.brand_code || '-') : '-'}</td><td>${financierDisplay}</td><td>${financierCodeDisplay}</td><td>${row.requested_by || '-'}</td><td class="table-date-column">${requestedDateDisplay}</td><td class="table-actions-column"><div class="action-buttons">${actionsHtml}</div></td>;
+            });
+            await new Promise(resolve => setTimeout(resolve, 0)); // Yield to browser for rendering
+        }
     } else {
         const colSpan = tableBody.parentElement?.tHead?.rows[0]?.cells.length || 12;
-        tableBody.innerHTML = `<tr id="overall-main-mapping-table-body-no-data-filter"><td colspan="${colSpan}" class="empty-state">No matching overall main mapping requests found.</td></tr>`;
+        tableBody.innerHTML = <tr id="overall-main-mapping-table-body-no-data-filter"><td colspan="${colSpan}" class="empty-state">No matching overall main mapping requests found.</td></tr>;
     }
 };
 
-window.loadOverallMainMappings = async () => {
+// Load main mappings (with pagination)
+const loadOverallMainMappings = async (page = 1, pageSize = 50) => {
     const tableBody = document.getElementById('overall-main-mapping-table-body');
     if (!tableBody) {
-        window.showToast("Overall main mapping table not found in UI.", "error");
+        window.showToast('Main mapping table not found.', 'error');
         return;
     }
 
-    tableBody.innerHTML = `<tr id="overall-main-mapping-table-body-initial-loading"><td colspan="12" class="loading text-center">Loading overall main mappings...</td></tr>`;
+    tableBody.innerHTML = <tr id="overall-main-mapping-table-body-initial-loading"><td colspan="12" class="loading text-center">Loading...</td></tr>;
 
     try {
         const { data: { user } = { user: null } } = await window.supabaseClient.auth.getUser();
-        if (!user) {
-            tableBody.innerHTML = `<tr><td colspan="12" class="empty-state">Please log in to view mappings.</td></tr>`;
-            return;
-        }
+        if (!user) throw new Error('Please log in.');
 
         let query = window.supabaseClient
             .from('finance_mappings')
-            .select('id, store_name, state, asm, mail_id, brand, brand_code, financier, financier_code, requested_by, requested_date, user_id, pinelabs_details!pinelabs_details_mapping_id_fkey(*)')
-            .order('id', { ascending: false });
+            .select('id, store_name, state, asm, mail_id, brand, brand_code, financier, financier_code, requested_by, requested_date, user_id, pinelabs_details!pinelabs_details_mapping_id_fkey(*)', { count: 'exact' })
+            .order('id', { ascending: false })
+            .range((page - 1) * pageSize, page * pageSize - 1); // Paginate
 
-        const userRole = await window.checkUserRole();
+        const userRole = appState.currentUserRole;
         if (userRole !== 'admin') {
             query = query.eq('user_id', user.id);
         }
 
-        const { data: mappings, error } = await query;
+        const { data: mappings, count, error } = await query;
+        if (error) throw new Error(error.message.includes('policy') ? 'Permission denied.' : error.message);
 
-        if (error) {
-            const userErr = (error.code === '42501' || error.message.includes('policy'))
-                ? 'Permission denied. Check RLS policies.'
-                : 'Error loading: ' + error.message;
-            tableBody.innerHTML = `<tr><td colspan="12" class="empty-state">${userErr}</td></tr>`;
-            window.showToast(userErr, 'error');
-            return;
+        appState.currentOverallMainMappingsData = mappings || [];
+        await applyOverallMainMappingsFilters();
+
+        // Optionally add pagination controls if count > pageSize
+        if (count > pageSize) {
+            console.log(Total mappings: ${count}. Add pagination controls for page ${page}.);
         }
-
-        window.currentOverallMainMappingsData = mappings || [];
-        await window.applyOverallMainMappingsFilters();
-
     } catch (err) {
-        window.showToast('Error loading overall mappings: ' + err.message, 'error');
-        if (tableBody) tableBody.innerHTML = `<tr><td colspan="12" class="empty-state">Error loading. Check console.</td></tr>`;
+        window.showToast('Error loading mappings: ' + err.message, 'error');
+        tableBody.innerHTML = <tr><td colspan="12" class="empty-state">Error loading.</td></tr>;
     }
 };
 
-window.applyOverallMainMappingsFilters = async () => {
-    const searchTerm = overallMainMappingsSearchInput.value.toLowerCase();
-    const brandFilter = overallMainMappingsBrandFilter.value;
-    const userRole = await window.checkUserRole();
+// Apply main mappings filters
+const applyOverallMainMappingsFilters = async () => {
+    const searchTerm = elements.overallMainMappingsSearchInput.value.toLowerCase();
+    const brandFilter = elements.overallMainMappingsBrandFilter.value;
+    const userRole = appState.currentUserRole;
 
-    const filteredData = window.currentOverallMainMappingsData.filter(row => {
-        const isPurePineLabsMapping = (row.financier === '' || row.financier === null) && row.pinelabs_details && row.pinelabs_details.length > 0;
+    const filteredData = appState.currentOverallMainMappingsData.filter(row => {
+        const isPurePineLabsMapping = (!row.financier && row.pinelabs_details?.length > 0);
         if (!isPurePineLabsMapping || userRole === 'admin') {
             let financierSearchValue = row.financier || '';
-            if (isPurePineLabsMapping && userRole === 'admin') {
-                financierSearchValue = 'Pine Labs';
-            }
+            if (isPurePineLabsMapping && userRole === 'admin') financierSearchValue = 'Pine Labs';
 
-            const matchesSearch = searchTerm === '' ||
-                (row.store_name?.toLowerCase().includes(searchTerm)) ||
-                (row.state?.toLowerCase().includes(searchTerm)) ||
-                (row.asm?.toLowerCase().includes(searchTerm)) ||
-                (row.mail_id?.toLowerCase().includes(searchTerm)) ||
-                (row.brand?.toLowerCase().includes(searchTerm)) ||
-                (financierSearchValue?.toLowerCase().includes(searchTerm)) ||
-                (row.requested_by?.toLowerCase().includes(searchTerm)) ||
-                (row.id?.toString().includes(searchTerm)) ||
-                (row.requested_date ? new Date(row.requested_date).toLocaleDateString().includes(searchTerm) : false); // Search by displayed date
-
-            const matchesBrand = brandFilter === '' || row.brand === brandFilter;
-            return matchesSearch && matchesBrand;
+            return (searchTerm === '' ||
+                row.store_name?.toLowerCase().includes(searchTerm) ||
+                row.state?.toLowerCase().includes(searchTerm) ||
+                row.asm?.toLowerCase().includes(searchTerm) ||
+                row.mail_id?.toLowerCase().includes(searchTerm) ||
+                row.brand?.toLowerCase().includes(searchTerm) ||
+                financierSearchValue.toLowerCase().includes(searchTerm) ||
+                row.requested_by?.toLowerCase().includes(searchTerm) ||
+                row.id?.toString().includes(searchTerm) ||
+                (row.requested_date && new Date(row.requested_date).toLocaleDateString().includes(searchTerm))) &&
+                (brandFilter === '' || row.brand === brandFilter);
         }
         return false;
     });
 
-    await window.populateOverallMainMappingsTable(filteredData, userRole);
+    await populateOverallMainMappingsTable(filteredData, userRole);
 };
 
-if (overallMainMappingsSearchInput) overallMainMappingsSearchInput.addEventListener('input', window.applyOverallMainMappingsFilters);
-if (overallMainMappingsBrandFilter) overallMainMappingsBrandFilter.addEventListener('change', window.applyOverallMainMappingsFilters);
-
-window.currentOverallPinelabsData = []; // Ensure initialized
-
-window.loadOverallPinelabsDetails = async () => {
-    const tableBody = document.getElementById('overall-pinelabs-table-body');
-    if (!tableBody) {
-        window.showToast("Overall Pine Labs table not found.", "error");
+// Load Pine Labs details (lazy-loaded if specified)
+const loadOverallPinelabsDetails = async (lazy = false) => {
+    if (lazy) {
+        // Defer loading until user interaction (e.g., clicking a "Load Pine Labs Details" button)
+        const tableBody = document.getElementById('overall-pinelabs-table-body');
+        if (tableBody) {
+            tableBody.innerHTML = <tr id="overall-pinelabs-table-body-initial-loading"><td colspan="9" class="loading text-center">Pine Labs details will load on demand.</td></tr>;
+        }
         return;
     }
 
-    tableBody.innerHTML = `<tr id="overall-pinelabs-table-body-initial-loading"><td colspan="9" class="loading text-center">Loading...</td></tr>`;
+    const tableBody = document.getElementById('overall-pinelabs-table-body');
+    if (!tableBody) {
+        window.showToast('Pine Labs table not found.', 'error');
+        return;
+    }
+
+    tableBody.innerHTML = <tr id="overall-pinelabs-table-body-initial-loading"><td colspan="9" class="loading text-center">Loading...</td></tr>;
 
     try {
         const { data: { user } = { user: null } } = await window.supabaseClient.auth.getUser();
-        if (!user) {
-            tableBody.innerHTML = `<tr><td colspan="9" class="empty-state">Please log in.</td></tr>`;
-            return;
-        }
+        if (!user) throw new Error('Please log in.');
 
         let pinelabsQuery = window.supabaseClient
             .from('pinelabs_details')
-            .select(`id, mapping_id, pos_id, tid, serial_no, store_id`)
-            .order('mapping_id', { ascending: false });
+            .select('id, mapping_id, pos_id, tid, serial_no, store_id', { count: 'exact' })
+            .order('mapping_id', { ascending: false })
+            .range(0, 49); // Paginate: first 50 rows
 
-        const userRole = await window.checkUserRole();
+        const userRole = appState.currentUserRole;
+        let userMappingIds = [];
         if (userRole !== 'admin') {
-            const { data: userMappings, error: userMappingsError } = await window.supabaseClient
-                .from('finance_mappings').select('id').eq('user_id', user.id);
-            if (userMappingsError) console.warn("Error fetching user mapping IDs for PL filter:", userMappingsError.message);
-
-            const userMappingIds = userMappings ? userMappings.map(m => m.id) : [];
-            if (userMappingIds.length > 0) {
-                pinelabsQuery = pinelabsQuery.in('mapping_id', userMappingIds);
-            } else {
-                tableBody.innerHTML = `<tr id="overall-pinelabs-table-body-no-data"><td colspan="9" class="empty-state">No Pine Labs details for your mappings.</td></tr>`;
-                await window.applyOverallPinelabsFilters(); // Call filter to clear dynamic messages
+            const { data: userMappings, error } = await window.supabaseClient
+                .from('finance_mappings')
+                .select('id')
+                .eq('user_id', user.id);
+            if (error) console.warn('Error fetching user mappings:', error.message);
+            userMappingIds = userMappings?.map(m => m.id) || [];
+            if (userMappingIds.length === 0) {
+                tableBody.innerHTML = <tr id="overall-pinelabs-table-body-no-data"><td colspan="9" class="empty-state">No Pine Labs details.</td></tr>;
+                await applyOverallPinelabsFilters();
                 return;
             }
+            pinelabsQuery = pinelabsQuery.in('mapping_id', userMappingIds);
         }
 
-        const { data: rawPinelabsDetails, error: pinelabsError } = await pinelabsQuery;
-        if (pinelabsError) throw pinelabsError;
+        const { data: rawPinelabsDetails, count, error } = await pinelabsQuery;
+        if (error) throw new Error(error.message);
 
         const mappingIds = [...new Set(rawPinelabsDetails.map(d => d.mapping_id).filter(Boolean))];
         let financeMappingsData = [];
         if (mappingIds.length > 0) {
-            const { data: mappings, error: mapError } = await window.supabaseClient.from('finance_mappings').select(`id, store_name, brand`).in('id', mappingIds);
-            if (mapError) console.warn("Could not fetch store/brand for some PL details:", mapError.message);
-            else financeMappingsData = mappings || [];
+            const { data: mappings, error: mapError } = await window.supabaseClient
+                .from('finance_mappings')
+                .select('id, store_name, brand')
+                .in('id', mappingIds);
+            if (mapError) console.warn('Error fetching mappings:', mapError.message);
+            financeMappingsData = mappings || [];
         }
 
         const mappingsMap = new Map(financeMappingsData.map(m => [m.id, m]));
-        window.currentOverallPinelabsData = rawPinelabsDetails.map(pl => ({ ...pl, finance_mappings: mappingsMap.get(pl.mapping_id) || null }));
+        appState.currentOverallPinelabsData = rawPinelabsDetails.map(pl => ({
+            ...pl,
+            finance_mappings: mappingsMap.get(pl.mapping_id) || null,
+        }));
 
-        await window.applyOverallPinelabsFilters();
-
+        await applyOverallPinelabsFilters();
     } catch (err) {
         window.showToast('Error loading Pine Labs: ' + err.message, 'error');
-        if (tableBody) tableBody.innerHTML = '<tr><td colspan="9" class="empty-state">Error. Check console.</td></tr>';
+        tableBody.innerHTML = <tr><td colspan="9" class="empty-state">Error loading.</td></tr>;
     }
 };
 
-window.applyOverallPinelabsFilters = async () => {
+// Apply Pine Labs filters
+const applyOverallPinelabsFilters = async () => {
     const tableBody = document.getElementById('overall-pinelabs-table-body');
-    const searchTerm = overallPinelabsSearchInput.value.toLowerCase();
-    const brandFilter = overallPinelabsBrandFilter.value;
-    const userRole = await window.checkUserRole();
+    const searchTerm = elements.overallPinelabsSearchInput.value.toLowerCase();
+    const brandFilter = elements.overallPinelabsBrandFilter.value;
+    const userRole = appState.currentUserRole;
 
-    const filteredData = window.currentOverallPinelabsData.filter(pl => {
-        const matchesSearch = searchTerm === '' ||
-            (pl.pos_id?.toLowerCase().includes(searchTerm)) ||
-            (pl.tid?.toLowerCase().includes(searchTerm)) ||
-            (pl.serial_no?.toLowerCase().includes(searchTerm)) ||
-            (pl.store_id?.toLowerCase().includes(searchTerm)) ||
-            (pl.mapping_id?.toString().includes(searchTerm)) ||
-            (pl.id?.toString().includes(searchTerm)) ||
-            (pl.finance_mappings?.store_name?.toLowerCase().includes(searchTerm));
-
-        const matchesBrand = brandFilter === '' || pl.finance_mappings?.brand === brandFilter;
-        return matchesSearch && matchesBrand;
+    const filteredData = appState.currentOverallPinelabsData.filter(pl => {
+        return (searchTerm === '' ||
+            pl.pos_id?.toLowerCase().includes(searchTerm) ||
+            pl.tid?.toLowerCase().includes(searchTerm) ||
+            pl.serial_no?.toLowerCase().includes(searchTerm) ||
+            pl.store_id?.toLowerCase().includes(searchTerm) ||
+            pl.mapping_id?.toString().includes(searchTerm) ||
+            pl.id?.toString().includes(searchTerm) ||
+            pl.finance_mappings?.store_name?.toLowerCase().includes(searchTerm)) &&
+            (brandFilter === '' || pl.finance_mappings?.brand === brandFilter);
     });
 
-    if (typeof window.populatePinelabsTable === 'function') { // populatePinelabsTable is from pinelabs.js
-        window.populatePinelabsTable(tableBody, filteredData, { editable: true, isAdminView: (userRole === 'admin') });
+    if (typeof window.populatePinelabsTable === 'function') {
+        window.populatePinelabsTable(tableBody, filteredData, { editable: true, isAdminView: userRole === 'admin' });
     }
 
     const actualDisplayedRows = tableBody.querySelectorAll('tr:not([id^="overall-pinelabs-table-body-"])').length;
     const colSpan = tableBody.parentElement?.tHead?.rows[0]?.cells.length || 9;
     const existingNoDataFilter = document.getElementById('overall-pinelabs-table-body-no-data-filter');
 
-    if (actualDisplayedRows === 0) {
-        if (!existingNoDataFilter) {
-            const tr = document.createElement('tr');
-            tr.id = 'overall-pinelabs-table-body-no-data-filter';
-            tr.innerHTML = `<td colspan="${colSpan}" class="empty-state">No matching overall Pine Labs details found.</td>`;
-            tableBody.appendChild(tr);
-        } else {
-            existingNoDataFilter.style.display = '';
-        }
-    } else {
-        if (existingNoDataFilter) existingNoDataFilter.remove();
+    if (actualDisplayedRows === 0 && !existingNoDataFilter) {
+        tableBody.innerHTML = <tr id="overall-pinelabs-table-body-no-data-filter"><td colspan="${colSpan}" class="empty-state">No matching Pine Labs details found.</td></tr>;
+    } else if (existingNoDataFilter && actualDisplayedRows > 0) {
+        existingNoDataFilter.remove();
     }
 };
 
-if (overallPinelabsSearchInput) overallPinelabsSearchInput.addEventListener('input', window.applyOverallPinelabsFilters);
-if (overallPinelabsBrandFilter) overallPinelabsBrandFilter.addEventListener('change', window.applyOverallPinelabsFilters);
-
-window.deleteOverallMainMapping = async (id) => {
-    if (!confirm('Delete this mapping and all its Pine Labs details?')) return;
+// Delete main mapping
+const deleteOverallMainMapping = async (id) => {
+    if (!confirm('Delete this mapping and its Pine Labs details?')) return;
     try {
         await window.supabaseClient.from('pinelabs_details').delete().eq('mapping_id', id);
         await window.supabaseClient.from('finance_mappings').delete().eq('id', id);
         window.showToast('Mapping deleted!', 'success');
-        await window.loadOverallMainMappings();
-        await window.loadOverallPinelabsDetails();
-        if (mainTabPaper && mainTabPaper.classList.contains('active') && typeof window.loadMappings === 'function') {
+        await refreshOverallTables();
+        if (elements.mainTabPaper?.classList.contains('active') && typeof window.loadMappings === 'function') {
             await window.loadMappings();
         }
     } catch (err) {
@@ -351,130 +362,194 @@ window.deleteOverallMainMapping = async (id) => {
     }
 };
 
-const prepareOverallExcelData = (mainMappings) => { // Changed to use filtered data
+// Prepare Excel data
+const prepareOverallExcelData = (mainMappings) => {
     return mainMappings.map(m => {
         let financierExcelDisplay = m.financier || '-';
         let financierCode = '-';
-        if (m.financier && m.financier !== '') {
-            if (m.financier_code && typeof m.financier_code === 'object') {
+        if (m.financier) {
+            if (typeof m.financier_code === 'object') {
                 const financierKey = m.financier.toLowerCase().replace(/ /g, '_');
                 financierCode = m.financier_code[financierKey] || '-';
             }
-        } else if ((m.financier === '' || m.financier === null) && m.pinelabs_details && m.pinelabs_details.length > 0) {
+        } else if (!m.financier && m.pinelabs_details?.length > 0) {
             financierExcelDisplay = 'Pine Labs';
         }
 
         const requestedDateExcel = m.requested_date ? new Date(m.requested_date).toLocaleDateString() : '-';
+        const pinelabsString = m.pinelabs_details?.map(p => POS:${p.pos_id || 'N/A'},TID:${p.tid || 'N/A'},SNo:${p.serial_no || 'N/A'},StoreID:${p.store_id || 'N/A'}).join('; ') || '-';
 
-        const pinelabsString = m.pinelabs_details?.map(p => `POS:${p.pos_id || 'N/A'},TID:${p.tid || 'N/A'},SNo:${p.serial_no || 'N/A'},StoreID:${p.store_id || 'N/A'}`).join('; ') || '-';
         return {
-            ID: m.id, SN: m.store_name || '-', ST: m.state || '-', ASM: m.asm || '-', Mail: m.mail_id || '-', Brand: m.brand || '-', BCode: m.brand === 'Apple' ? (m.brand_code || '-') : '-',
-            Fin: financierExcelDisplay, FCode: financierCode, 'Req. By': m.requested_by || '-', Date: requestedDateExcel, PLDetails: pinelabsString
+            ID: m.id,
+            SN: m.store_name || '-',
+            ST: m.state || '-',
+            ASM: m.asm || '-',
+            Mail: m.mail_id || '-',
+            Brand: m.brand || '-',
+            BCode: m.brand === 'Apple' ? (m.brand_code || '-') : '-',
+            Fin: financierExcelDisplay,
+            FCode: financierCode,
+            'Req. By': m.requested_by || '-',
+            Date: requestedDateExcel,
+            PLDetails: pinelabsString,
         };
     });
 };
 
-if (downloadOverallMainExcelBtn) downloadOverallMainExcelBtn.addEventListener('click', async () => {
-    try {
-        if (typeof XLSX === 'undefined') throw new Error('Excel lib not loaded.');
-
-        // Use window.filteredOverallMainMappingsForExcel (populated by populateOverallMainMappingsTable)
-        const dataToExport = window.filteredOverallMainMappingsForExcel || [];
-
-        if (dataToExport.length === 0) {
-            window.showToast('No data to export based on current filters.', 'info');
-            return;
-        }
-
-        const exportData = prepareOverallExcelData(dataToExport); // Prepare this filtered data
-
-        const ws = XLSX.utils.json_to_sheet(exportData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Overall Mappings");
-        XLSX.writeFile(wb, `Overall_Mappings_${new Date().toISOString().split('T')[0]}.xlsx`);
-    }
-    catch (err) {
-        window.showToast('Excel export error: ' + err.message, 'error');
-    }
-});
-
-if (downloadOverallPinelabsExcelBtn) downloadOverallPinelabsExcelBtn.addEventListener('click', async () => {
-    try {
-        if (typeof XLSX === 'undefined') throw new Error('Excel lib not loaded.');
-        // For Pine Labs Excel, we directly use the currentOverallPinelabsData after applying filters on UI.
-        // The display is already filtered. We can grab current DOM rows or re-filter for export explicitly
-        const tableBody = document.getElementById('overall-pinelabs-table-body');
-        const searchTerm = overallPinelabsSearchInput.value.toLowerCase();
-        const brandFilter = overallPinelabsBrandFilter.value;
-
-        const exportablePinelabsData = window.currentOverallPinelabsData.filter(pl => {
-            const matchesSearch = searchTerm === '' ||
-                (pl.pos_id?.toLowerCase().includes(searchTerm)) ||
-                (pl.tid?.toLowerCase().includes(searchTerm)) ||
-                (pl.serial_no?.toLowerCase().includes(searchTerm)) ||
-                (pl.store_id?.toLowerCase().includes(searchTerm)) ||
-                (pl.mapping_id?.toString().includes(searchTerm)) ||
-                (pl.id?.toString().includes(searchTerm)) ||
-                (pl.finance_mappings?.store_name?.toLowerCase().includes(searchTerm));
-
-            const matchesBrand = brandFilter === '' || pl.finance_mappings?.brand === brandFilter;
-            return matchesSearch && matchesBrand;
-        });
-
-        if (exportablePinelabsData.length === 0) { window.showToast('No PL data to export based on current filters.', 'info'); return; }
-
-        const exportData = exportablePinelabsData.map(pl => {
-            const rm = pl.finance_mappings || {}; // Use pl.finance_mappings directly as it's attached.
-            return { PL_ID: pl.id, MapID: pl.mapping_id || 'N/A', Store: rm.store_name || 'N/A', Brand: rm.brand || 'N/A', POS: pl.pos_id || '-', TID: pl.tid || '-', SNo: pl.serial_no || '-', StorePL: pl.store_id || '-' };
-        });
-
-        const ws = XLSX.utils.json_to_sheet(exportData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Overall PineLabs");
-        XLSX.writeFile(wb, `Overall_PineLabs_${new Date().toISOString().split('T')[0]}.xlsx`);
-    } catch (err) {
-        window.showToast('PL Excel export error: ' + err.message, 'error');
-    }
-});
-
-window.refreshOverallTables = async () => {
-    if (mainTabOverall && mainTabOverall.classList.contains('active')) {
-        await window.loadOverallMainMappings();
-        await window.loadOverallPinelabsDetails();
+// Refresh tables
+const refreshOverallTables = async () => {
+    if (elements.mainTabOverall?.classList.contains('active')) {
+        await Promise.all([
+            loadOverallMainMappings(),
+            loadOverallPinelabsDetails(),
+        ]);
     }
 };
 
-window.addEventListener('load', async () => {
-    const userRole = await window.checkUserRole();
-    if (userRole === 'admin') {
-        window.switchMainTab('overall');
-    } else {
-        //Added to force initial state form visible and correct tab selected
-        formSection.style.display = 'block';
-        window.switchMainTab('paper');
+// Form submission
+const handleFormSubmission = async (event) => {
+    event.preventDefault();
+    try {
+        const formData = new FormData(elements.mappingForm);
+        const data = {
+            store_name: formData.get('store_name'),
+            state: formData.get('state'),
+            asm: formData.get('asm'),
+            mail_id: formData.get('mail_id'),
+            brand: formData.get('brand'),
+            brand_code: formData.get('brand_code'),
+            financier: formData.get('financier'),
+            financier_code: formData.get('financier_code'),
+            requested_by: formData.get('requested_by'),
+            requested_date: new Date().toISOString(),
+            user_id: (await window.supabaseClient.auth.getUser()).data.user?.id,
+        };
+
+        if (!data.store_name || !data.brand) {
+            window.showToast('Store name and brand are required.', 'error');
+            return;
+        }
+
+        const { error } = await window.supabaseClient.from('finance_mappings').insert([data]);
+        if (error) throw new Error(error.message);
+
+        window.showToast('Mapping submitted!', 'success');
+        elements.formSection.style.display = 'none';
+        elements.mappingForm.reset();
+
+        if (elements.mainTabPaper?.classList.contains('active') && typeof window.loadMappings === 'function') {
+            await window.loadMappings();
+        } else {
+            await refreshOverallTables();
+        }
+    } catch (err) {
+        window.showToast('Error submitting form: ' + err.message, 'error');
     }
-});
+};
 
+// Initialize page (render UI first, load data in background)
+const initializePage = async () => {
+    const userRole = await checkUserRole();
+    elements.formSection.style.display = userRole === 'admin' ? 'none' : 'block';
+
+    // Hide loading screen and show main UI
+    const loadingScreen = document.getElementById('loading-screen'); // Assumes a <div id="loading-screen">
+    if (loadingScreen) {
+        loadingScreen.style.display = 'none';
+    }
+    const mainContent = document.getElementById('main-content'); // Assumes a <div id="main-content"> for main UI
+    if (mainContent) {
+        mainContent.style.display = 'block';
+    }
+
+    await switchMainTab(userRole === 'admin' ? 'overall' : 'paper');
+};
+
+// Event listeners
 document.addEventListener('DOMContentLoaded', () => {
-    const mappingForm = document.getElementById('mapping-form');
-    const formSection = document.getElementById('form-section');
+    // Tab clicks
+    elements.mainTabPaper?.addEventListener('click', () => switchMainTab('paper'));
+    elements.mainTabOverall?.addEventListener('click', () => switchMainTab('overall'));
 
-    //Show the form on paper tab click
-    document.getElementById("main-tab-paper").addEventListener("click", function () {
-        formSection.style.display = "block";
+    // Form submission
+    elements.mappingForm?.addEventListener('submit', handleFormSubmission);
+
+    // Debounced filters
+    elements.overallMainMappingsSearchInput?.addEventListener('input', debounce(applyOverallMainMappingsFilters, 300));
+    elements.overallMainMappingsBrandFilter?.addEventListener('change', applyOverallMainMappingsFilters);
+    elements.overallPinelabsSearchInput?.addEventListener('input', debounce(applyOverallPinelabsFilters, 300));
+    elements.overallPinelabsBrandFilter?.addEventListener('change', applyOverallPinelabsFilters);
+
+    // Excel exports
+    if (elements.downloadOverallMainExcelBtn && typeof XLSX !== 'undefined') {
+        elements.downloadOverallMainExcelBtn.addEventListener('click', async () => {
+            try {
+                const dataToExport = appState.filteredOverallMainMappingsForExcel;
+                if (!dataToExport.length) {
+                    window.showToast('No data to export.', 'info');
+                    return;
+                }
+                const exportData = prepareOverallExcelData(dataToExport);
+                const ws = XLSX.utils.json_to_sheet(exportData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Overall Mappings');
+                XLSX.writeFile(wb, Overall_Mappings_${new Date().toISOString().split('T')[0]}.xlsx);
+            } catch (err) {
+                window.showToast('Excel export error: ' + err.message, 'error');
+            }
+        });
+    }
+
+    if (elements.downloadOverallPinelabsExcelBtn && typeof XLSX !== 'undefined') {
+        elements.downloadOverallPinelabsExcelBtn.addEventListener('click', async () => {
+            try {
+                const searchTerm = elements.overallPinelabsSearchInput.value.toLowerCase();
+                const brandFilter = elements.overallPinelabsBrandFilter.value;
+                const exportablePinelabsData = appState.currentOverallPinelabsData.filter(pl => {
+                    return (searchTerm === '' ||
+                        pl.pos_id?.toLowerCase().includes(searchTerm) ||
+                        pl.tid?.toLowerCase().includes(searchTerm) ||
+                        pl.serial_no?.toLowerCase().includes(searchTerm) ||
+                        pl.store_id?.toLowerCase().includes(searchTerm) ||
+                        pl.mapping_id?.toString().includes(searchTerm) ||
+                        pl.id?.toString().includes(searchTerm) ||
+                        pl.finance_mappings?.store_name?.toLowerCase().includes(searchTerm)) &&
+                        (brandFilter === '' || pl.finance_mappings?.brand === brandFilter);
+                });
+
+                if (!exportablePinelabsData.length) {
+                    window.showToast('No Pine Labs data to export.', 'info');
+                    return;
+                }
+
+                const exportData = exportablePinelabsData.map(pl => ({
+                    PL_ID: pl.id,
+                    MapID: pl.mapping_id || 'N/A',
+                    Store: pl.finance_mappings?.store_name || 'N/A',
+                    Brand: pl.finance_mappings?.brand || 'N/A',
+                    POS: pl.pos_id || '-',
+                    TID: pl.tid || '-',
+                    SNo: pl.serial_no || '-',
+                    StorePL: pl.store_id || '-',
+                }));
+
+                const ws = XLSX.utils.json_to_sheet(exportData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Overall PineLabs');
+                XLSX.writeFile(wb, Overall_PineLabs_${new Date().toISOString().split('T')[0]}.xlsx);
+            } catch (err) {
+                window.showToast('Excel export error: ' + err.message, 'error');
+            }
+        });
+    }
+
+    // Initialize page with timeout
+    const loadingTimeout = setTimeout(() => {
+        window.showToast('Loading is taking longer than expected. Please check your connection.', 'error');
+    }, 10000); // 10 seconds timeout
+
+    initializePage().then(() => clearTimeout(loadingTimeout)).catch(err => {
+        clearTimeout(loadingTimeout);
+        window.showToast('Initialization failed: ' + err.message, 'error');
     });
-
-    mappingForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        // Your existing form submission logic here (getting form data, etc.)
-        //Here to add all of the data submition to to your Supabase
-        //After the data submited hide the form
-        formSection.style.display = 'none';
-
-        // Refresh the mapping data after submission
-        await window.loadMappings();
-
-        console.log('Table displayed!');
-    });
-
 });
