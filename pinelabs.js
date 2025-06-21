@@ -7,7 +7,7 @@ if (pinelabsEntriesDomElement) {
     const initialPosIdRequired = posIdInputTemplate ? posIdInputTemplate.hasAttribute('required') : false;
 
     window.createPinelabsEntryHtml = (pos_id = '', tid = '', serial_no = '', store_id = '', includeRemoveButton = false, id = null) => {
-        const displayId = id !== null ? `data-id="${id}"` : '';
+        const displayId = id !== null ? data-id="${id}" : '';
         const currentEntries = pinelabsEntriesDomElement ? pinelabsEntriesDomElement.children.length : 0;
         const requiredAttribute = (currentEntries === 0 && pos_id === '' && initialPosIdRequired) ? 'required' : '';
 
@@ -71,7 +71,7 @@ if (pinelabsEntriesDomElement) {
 
         const table = tableBodyElement.closest('table');
         if (table && table.tHead && table.tHead.rows[0]) {
-             table.tHead.rows[0].innerHTML = `<th>PL ID</th><th>Mapping ID</th><th>Store Name</th><th>Brand</th><th>POS ID</th><th>TID</th><th>Serial No</th><th>Store ID (PL)</th><th class="table-actions-column">Actions</th>`;
+             table.tHead.rows[0].innerHTML = <th>PL ID</th><th>Mapping ID</th><th>Store Name</th><th>Brand</th><th>POS ID</th><th>TID</th><th>Serial No</th><th>Store ID (PL)</th><th class="table-actions-column">Actions</th>;
         }
 
         allPineLabsData = Array.isArray(pinelabsData) ? pinelabsData : [];
@@ -102,14 +102,14 @@ if (pinelabsEntriesDomElement) {
             dataToDisplay.forEach(pl => {
                 const tr = tableBodyElement.insertRow();
                 const mainMappingId = pl.finance_mappings?.id || pl.mapping_id;
-                let actionsCellHtml = `<td class="table-actions-column">-</td>`;
+                let actionsCellHtml = <td class="table-actions-column">-</td>;
 
                 if (editable) {
-                    actionsCellHtml = `<td class="table-actions-column"><div class="action-buttons">`;
+                    actionsCellHtml = <td class="table-actions-column"><div class="action-buttons">;
                     if (mainMappingId) {
-                        actionsCellHtml += `<button class="btn btn-icon-only btn-edit-icon" onclick="window.editMapping(${mainMappingId})" title="Edit Main Mapping"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>`;
+                        actionsCellHtml += <button class="btn btn-icon-only btn-edit-icon" onclick="window.editMapping(${mainMappingId})" title="Edit Main Mapping"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>;
                     }
-                    actionsCellHtml += `<button class="btn btn-icon-only btn-delete-icon" onclick="window.deleteSinglePinelabsDetail(${pl.id})" title="Delete Pine Labs Entry"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></div></td>`;
+                    actionsCellHtml += <button class="btn btn-icon-only btn-delete-icon" onclick="window.deleteSinglePinelabsDetail(${pl.id})" title="Delete Pine Labs Entry"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></div></td>;
                 }
                 const storeName = pl.finance_mappings?.store_name || '-';
                 const brand = pl.finance_mappings?.brand || '-';
@@ -120,7 +120,7 @@ if (pinelabsEntriesDomElement) {
                     <td>${pl.serial_no || '-'}</td><td>${pl.store_id || '-'}</td>${actionsCellHtml}`;
             });
         } else {
-            tableBodyElement.innerHTML = `<tr><td colspan="${colspan}" class="empty-state">${searchTerm ? 'No results found for your search.' : 'No Pine Labs details found.'}</td></tr>`;
+            tableBodyElement.innerHTML = <tr><td colspan="${colspan}" class="empty-state">${searchTerm ? 'No results found for your search.' : 'No Pine Labs details found.'}</td></tr>;
         }
     };
 
@@ -166,14 +166,14 @@ if (pinelabsEntriesDomElement) {
                 const editable = true; 
 
                  const mainMappingId = pl.finance_mappings?.id || pl.mapping_id;
-                 let actionsCellHtml = `<td class="table-actions-column">-</td>`;
+                 let actionsCellHtml = <td class="table-actions-column">-</td>;
 
                 if (editable) {
-                    actionsCellHtml = `<td class="table-actions-column"><div class="action-buttons">`;
+                    actionsCellHtml = <td class="table-actions-column"><div class="action-buttons">;
                      if (mainMappingId) {
-                        actionsCellHtml += `<button class="btn btn-icon-only btn-edit-icon" onclick="window.editMapping(${mainMappingId})" title="Edit Main Mapping"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>`;
+                        actionsCellHtml += <button class="btn btn-icon-only btn-edit-icon" onclick="window.editMapping(${mainMappingId})" title="Edit Main Mapping"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>;
                      }
-                    actionsCellHtml += `<button class="btn btn-icon-only btn-delete-icon" onclick="window.deleteSinglePinelabsDetail(${pl.id})" title="Delete Pine Labs Entry"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></div></td>`;
+                    actionsCellHtml += <button class="btn btn-icon-only btn-delete-icon" onclick="window.deleteSinglePinelabsDetail(${pl.id})" title="Delete Pine Labs Entry"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></div></td>;
                 }
 
                 const storeName = pl.finance_mappings?.store_name || '-';
@@ -192,7 +192,7 @@ if (pinelabsEntriesDomElement) {
                     ${actionsCellHtml}`;
             });
         } else {
-            tableBodyElement.innerHTML = `<tr><td colspan="${colspan}" class="empty-state">${searchTerm ? 'No results found for your search.' : 'No Pine Labs details found.'}</td></tr>`;
+            tableBodyElement.innerHTML = <tr><td colspan="${colspan}" class="empty-state">${searchTerm ? 'No results found for your search.' : 'No Pine Labs details found.'}</td></tr>;
         }
      };
 
@@ -333,7 +333,7 @@ if (pinelabsEntriesDomElement) {
                     .in('id', idsToDelete);
                 if (delErr) {
                     console.error('[updatePineLabsDetails] Error deleting Pine Labs entries:', delErr);
-                    throw new Error(`Failed to delete Pine Labs entries: ${delErr.message}`);
+                    throw new Error(Failed to delete Pine Labs entries: ${delErr.message});
                 }
                 allPineLabsData = allPineLabsData.filter(pl => !idsToDelete.includes(pl.id));
                 console.log('[updatePineLabsDetails] Deleted entries from allPineLabsData');
@@ -357,7 +357,7 @@ if (pinelabsEntriesDomElement) {
                 if (insErr) {
                     console.error('[updatePineLabsDetails] Error inserting Pine Labs entries:', insErr);
                     allPineLabsData = originalAllPineLabsData; // Rollback changes
-                    throw new Error(`Failed to insert Pine Labs entries: ${insErr.message}`);
+                    throw new Error(Failed to insert Pine Labs entries: ${insErr.message});
                 }
                 if (insertedData && insertedData.length > 0) {
                     const insertedWithMappingInfo = insertedData.map(item => ({
@@ -387,7 +387,7 @@ if (pinelabsEntriesDomElement) {
                 if (updErr) {
                     console.error('[updatePineLabsDetails] Error updating Pine Labs entry ID:', detail.id, 'Error:', updErr);
                     allPineLabsData = originalAllPineLabsData; // Rollback changes
-                    throw new Error(`Failed to update Pine Labs entry ${detail.id}: ${updErr.message}`);
+                    throw new Error(Failed to update Pine Labs entry ${detail.id}: ${updErr.message});
                 }
                 const index = allPineLabsData.findIndex(pl => pl.id === detail.id);
                 if (index > -1) {
@@ -432,7 +432,7 @@ if (pinelabsEntriesDomElement) {
     window.populatePinelabsTable = (el) => {
         if (el) {
             const colspan = el.closest('table')?.tHead?.rows[0]?.cells.length || 9;
-            el.innerHTML = `<tr><td colspan="${colspan}" class="empty-state">Pine Labs form initialization failed.</td></tr>`;
+            el.innerHTML = <tr><td colspan="${colspan}" class="empty-state">Pine Labs form initialization failed.</td></tr>;
         }
     };
     window.deleteSinglePinelabsDetail = () => window.showToast("Pine Labs delete unavailable.", "error");
@@ -444,4 +444,4 @@ if (pinelabsEntriesDomElement) {
      }
 }
 
-window.filterPineLabsTable();   
+window.filterPineLabsTable();
