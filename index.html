@@ -3,10 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- <link rel="icon" type="image/x-icon" href="/favicon.ico"> -->
     <title>Store Mapping Dashboard</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* Additional styles for skeleton loading, horizontal scrolling, and notifications */
+        /* General Reset and Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #0d243b;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .logout-container, #logout-btn {
+            display: block !important;
+            visibility: visible !important;
+            position: relative;
+            z-index: 1000;
+        }
+
+        /* Loading Screen */
         #loading-screen {
             position: fixed;
             top: 0;
@@ -24,17 +51,6 @@
         #loading-screen.hidden {
             display: none;
         }
-        .skeleton-row td {
-            background: #e0e0e0;
-            height: 20px;
-            border-radius: 4px;
-            animation: pulse 1.5s infinite ease-in-out;
-        }
-        @keyframes pulse {
-            0% { background-color: #e0e0e0; }
-            50% { background-color: #d0d0d0; }
-            100% { background-color: #e0e0e0; }
-        }
         .loading-spinner {
             border: 4px solid rgba(255, 255, 255, 0.3);
             border-top: 4px solid #00d1b2;
@@ -48,38 +64,564 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        /* Horizontal scrolling for tables on mobile */
+        #loading-message {
+            font-size: 1.2rem;
+            font-weight: 500;
+        }
+
+        /* Header */
+        header {
+            background: #1e2a44;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        h1 {
+            font-size: 1.8rem;
+            color: #ffffff;
+        }
+
+        /* Logout Container */
+        .logout-container {
+            position: relative;
+        }
+        #logout-btn {
+            background: linear-gradient(90deg, #00d1b2, #00aaff);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        #logout-btn:hover {
+            background: linear-gradient(90deg, #00aaff, #00d1b2);
+            transform: scale(1.05);
+        }
+        .logout-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: #2c3e50;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            margin-top: 8px;
+            width: max-content;
+            overflow: hidden;
+        }
+        .logout-dropdown.active {
+            display: block;
+        }
+        .logout-option {
+            padding: 0.75rem 1.5rem;
+            color: #e0e0e0;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .logout-option:hover {
+            background: #00d1b2;
+            color: white;
+        }
+        .logout-option:focus {
+            outline: 2px solid #00d1b2;
+            outline-offset: 2px;
+        }
+
+        .logout-notification {
+            position: fixed;
+            padding: 15px 30px;
+            border-radius: 5px;
+            z-index: 10000; /* Increased z-index */
+            font-size: 16px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Optional shadow for visibility */
+        }
+        .fade-out {
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #2c3e50;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            z-index: 1000;
+            transition: opacity 0.3s ease;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+        .toast.hidden {
+            opacity: 0;
+        }
+        .toast.success {
+            background: #28a745;
+        }
+        .toast.error {
+            background: #dc3545;
+        }
+        .toast.info {
+            background: #17a2b8;
+        }
+        /* Logout Notification */
+        .logout-notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #28a745;
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            z-index: 1001;
+            font-size: 1.1rem;
+            font-weight: 500;
+            text-align: center;
+            opacity: 1;
+            transition: opacity 0.5s ease-out;
+        }
+        .logout-notification.fade-out {
+            opacity: 0;
+        }
+
+        /* Tabs */
+        .main-tab-container {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .main-tab {
+            background: #2c3e50;
+            border: 1px solid #3b4a6b;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            color: #e0e0e0;
+            transition: all 0.3s ease;
+            flex: 1;
+            text-align: center;
+        }
+        .main-tab.active {
+            background: #00d1b2;
+            color: white;
+            border-color: #00d1b2;
+        }
+        .main-tab:hover:not(.active) {
+            background: #3b4a6b;
+        }
+
+        /* Form and Card */
+        .card {
+            background: #1e2a44;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            margin-bottom: 2rem;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #3b4a6b;
+            border-radius: 6px;
+            font-size: 1rem;
+            background: #2c3e50;
+            color: #e0e0e0;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .form-control:focus {
+            border-color: #00d1b2;
+            box-shadow: 0 0 8px rgba(0, 209, 178, 0.4);
+            outline: none;
+        }
+        .form-control::placeholder {
+            color: #a0aec0;
+        }
+        select.form-control {
+            appearance: none;
+            background: #2c3e50 url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNhMGFlYzAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cG9seWxpbmUgcG9pbnRzPSI2IDkgMTIgMTUgMTggOSIvPjwvc3ZnPg==') no-repeat right 1rem center/14px 14px;
+            cursor: pointer;
+            position: relative;
+            z-index: 10;
+        }
+        select.form-control option {
+            background: #2c3e50;
+            color: #e0e0e0;
+            padding: 0.5rem;
+        }
+        select.form-control:focus {
+            border-color: #00d1b2;
+            box-shadow: 0 4px 12px rgba(0, 209, 178, 0.3);
+        }
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: #e0e0e0;
+        }
+        .tab-container {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        .tab {
+            background: #2c3e50;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            color: #e0e0e0;
+            transition: all 0.3s ease;
+            flex: 1;
+            text-align: center;
+        }
+        .tab.active {
+            background: #00d1b2;
+            color: white;
+        }
+        .tab:hover:not(.active) {
+            background: #3b4a6b;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-height: 44px;
+        }
+        .btn-primary {
+            background: #00d1b2;
+            color: white;
+            border: none;
+        }
+        .btn-primary:hover {
+            background: #00b89c;
+            transform: scale(1.02);
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #00d1b2;
+            color: #00d1b2;
+        }
+        .btn-outline:hover {
+            background: #00d1b2;
+            color: white;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: scale(1.02);
+        }
+
+        /* Tables */
         .table-container {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
+            background: #1e2a44;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            margin-bottom: 2rem;
         }
         table {
             min-width: 100%;
-            width: max-content; /* Ensures table takes up necessary width */
+            border-collapse: collapse;
         }
-        /* Notification styles */
-        #admin-notification-form {
-            margin-bottom: 1rem;
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid #3b4a6b;
         }
-        #admin-notification-input {
+        th {
+            background: #2c3e50;
+            font-weight: 600;
+            color: #ffffff;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        tr:nth-child(even) {
+            background: #263560;
+        }
+        tr:hover {
+            background: #3b4a6b;
+        }
+        .table-actions-column {
+            min-width: 100px;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .btn-icon-only {
+            background: transparent;
+            border: none;
+            padding: 0.25rem;
+            cursor: pointer;
+        }
+        .btn-icon-only svg {
+            width: 20px;
+            height: 20px;
+        }
+        .btn-edit-icon:hover {
+            color: #00d1b2;
+        }
+        .btn-delete-icon:hover {
+            color: #dc3545;
+        }
+        .empty-state {
+            text-align: center;
+            color: #a0aec0;
+            font-style: italic;
+        }
+        .skeleton-row td {
+            background: #3b4a6b;
+            height: 20px;
+            border-radius: 4px;
+            animation: pulse 1.5s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0% { background-color: #3b4a6b; }
+            50% { background-color: #2c3e50; }
+            100% { background-color: #3b4a6b; }
+        }
+
+        /* Filter Controls */
+        .filter-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .filter-controls input[type="search"] {
             width: 100%;
-            padding: 0.5rem;
-            border-radius: 4px;
-            border: 1px solid #ccc;
-            margin-bottom: 0.5rem;
+            padding: 0.75rem;
+            border: 1px solid #3b4a6b;
+            border-radius: 6px;
+            background: #2c3e50;
+            color: #e0e0e0;
         }
-        #user-notification {
-            display: none;
-            background: #e0f7fa;
-            color: #006064;
-            padding: 1rem;
-            border-radius: 4px;
-            margin-bottom: 1rem;
-            animation: fadeIn 1s ease-in-out;
+        .filter-controls input[type="search"]::placeholder {
+            color: #a0aec0;
         }
-        @keyframes fadeIn {
-            0% { opacity: 0; transform: translateY(-10px); }
-            100% { opacity: 1; transform: translateY(0); }
+        .filter-controls select.form-control {
+            width: 100%;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+            .logout-container {
+                width: 100%;
+                text-align: right;
+            }
+            #logout-btn {
+                width: 100%;
+                text-align: center;
+            }
+            .logout-dropdown {
+                width: 100%;
+                right: 0;
+            }
+            .logout-container .logout-dropdown.active {
+                display: block;
+            }
+            .main-tab-container {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+            .main-tab {
+                width: 100%;
+                padding: 1rem;
+                font-size: 1rem;
+            }
+            .tab-container {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            .tab {
+                width: 100%;
+                padding: 0.75rem;
+                font-size: 1rem;
+            }
+            .grid-cols-1-md-2 {
+                grid-template-columns: 1fr;
+            }
+            .form-group {
+                margin-bottom: 1.5rem;
+            }
+            .form-control {
+                font-size: 0.95rem;
+                padding: 0.8rem;
+            }
+            select.form-control {
+                max-height: 200px;
+                font-size: 0.95rem;
+            }
+            .btn {
+                padding: 0.8rem 1rem;
+                font-size: 0.95rem;
+                min-height: 48px;
+            }
+            .flex.gap-md {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            .table-container {
+                padding: 0.5rem;
+            }
+            table {
+                display: block;
+                overflow-x: hidden;
+            }
+            thead {
+                display: none;
+            }
+            tbody {
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
+            }
+            tr {
+                display: flex;
+                flex-direction: column;
+                background: #263560;
+                border-radius: 8px;
+                padding: 1rem;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            }
+            td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.5rem 0;
+                border-bottom: none;
+                font-size: 0.9rem;
+            }
+            td:before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: #ffffff;
+                flex: 1;
+                margin-right: 1rem;
+            }
+            td.table-actions-column {
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+            .action-buttons {
+                justify-content: center;
+            }
+            #mapping-table-body td:nth-child(1):before { content: "Store Name"; }
+            #mapping-table-body td:nth-child(2):before { content: "City"; }
+            #mapping-table-body td:nth-child(3):before { content: "Mail ID"; }
+            #mapping-table-body td:nth-child(4):before { content: "Brand"; }
+            #mapping-table-body td:nth-child(5):before { content: "Brand Code"; }
+            #mapping-table-body td:nth-child(6):before { content: "Financier"; }
+            #mapping-table-body td:nth-child(7):before { content: "Financier Code"; }
+            #mapping-table-body td:nth-child(8):before { content: "Requested By"; }
+            #mapping-table-body td:nth-child(9):before { content: "Requested Date"; }
+            #mapping-table-body td:nth-child(10):before { content: "Actions"; }
+            
+            #pinelabs-table-body td:nth-child(3):before { content: "Store Name"; }
+            #pinelabs-table-body td:nth-child(4):before { content: "Brand"; }
+            #pinelabs-table-body td:nth-child(5):before { content: "POS ID"; }
+            #pinelabs-table-body td:nth-child(6):before { content: "TID"; }
+            #pinelabs-table-body td:nth-child(7):before { content: "Serial No"; }
+            #pinelabs-table-body td:nth-child(8):before { content: "Store ID (PL)"; }
+            #pinelabs-table-body td:nth-child(9):before { content: "Actions"; }
+            #overall-main-mapping-table-body td:nth-child(1):before { content: "Store Name"; }
+            #overall-main-mapping-table-body td:nth-child(2):before { content: "City"; }
+            #overall-main-mapping-table-body td:nth-child(3):before { content: "Mail ID"; }
+            #overall-main-mapping-table-body td:nth-child(4):before { content: "Brand"; }
+            #overall-main-mapping-table-body td:nth-child(5):before { content: "Brand Code"; }
+            #overall-main-mapping-table-body td:nth-child(6):before { content: "Financier"; }
+            #overall-main-mapping-table-body td:nth-child(7):before { content: "Financier Code"; }
+            #overall-main-mapping-table-body td:nth-child(8):before { content: "Requested By"; }
+            #overall-main-mapping-table-body td:nth-child(9):before { content: "Requested Date"; }
+            #overall-main-mapping-table-body td:nth-child(10):before { content: "Actions"; }
+            #overall-pinelabs-table-body td:nth-child(3):before { content: "Store Name"; }
+            #overall-pinelabs-table-body td:nth-child(4):before { content: "Brand"; }
+            #overall-pinelabs-table-body td:nth-child(5):before { content: "POS ID"; }
+            #overall-pinelabs-table-body td:nth-child(6):before { content: "TID"; }
+            #overall-pinelabs-table-body td:nth-child(7):before { content: "Serial No"; }
+            #overall-pinelabs-table-body td:nth-child(8):before { content: "Store ID (PL)"; }
+            #overall-pinelabs-table-body td:nth-child(9):before { content: "Actions"; }
+            .filter-controls {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+            .filter-controls input[type="search"],
+            .filter-controls select.form-control {
+                width: 100%;
+                font-size: 0.95rem;
+                padding: 0.8rem;
+            }
+            .table-header-title {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+            .table-header-title h3 {
+                font-size: 1.2rem;
+            }
+            .btn-secondary {
+                width: 100%;
+                text-align: center;
+            }
+            #financiers-section {
+                display: block !important;
+            }
+            #overall-mapping-content.hidden {
+                display: none !important;
+            }
+            #overall-mapping-content table {
+                display: none;
+            }
+            #overall-mapping-content.hidden table {
+                display: none !important;
+            }
+            table:has(#overall-main-mapping-table-body),
+            table:has(#overall-pinelabs-table-body) {
+                display: none;
+            }
+            table:has(#overall-main-mapping-table-body),
+            table:has(#overall-pinelabs-table-body):not(#overall-mapping-content table) {
+                display: none !important;
+            }
+
         }
     </style>
 </head>
@@ -93,7 +635,12 @@
     <div class="container hidden" id="app-container">
         <header class="flex justify-between items-center mb-xxl">
             <h1 class="mb-0">Store Mapping Dashboard</h1>
-            <button id="logout-btn" class="btn btn-outline">Logout</button>
+            <div class="logout-container">
+                <button id="logout-btn" class="btn" aria-label="Logout" aria-expanded="false"></button>
+                <div id="logout-dropdown" class="logout-dropdown" role="menu">
+                    <div id="confirm-logout" class="logout-option" role="menuitem" tabindex="0">Confirm Logout</div>
+                </div>
+            </div>
         </header>
 
         <div class="main-tab-container">
@@ -103,39 +650,63 @@
 
         <main>
             <section id="paper-finance-content" class="content-section">
-                <!-- Notification display for non-admins -->
-                <div id="user-notification"></div>
-
                 <div id="form-section" class="card">
                     <header>
                         <h3>Mapping Request Form</h3>
                     </header>
                     <form id="mapping-form" novalidate>
-                        <input type="hidden" id="mapping-id">
-                        <input type="hidden" id="active-tab" value="financier">
+                        <input type="hidden" id="mapping-id" data-field="mapping-id">   
+                        <input type="hidden" id="active-tab" value="financier" data-field="active-tab">
 
                         <div class="grid grid-cols-1-md-2 gap-lg mb-lg">
                             <div class="form-group">
                                 <label for="store-name">Store Name</label>
-                                <select id="store-name" class="form-control" required></select>
+                                <select id="store-name" name="store_name" class="form-control" required data-field="store-name">
+                                    <option value="">Select Store Name</option>
+                                    <!-- Options will be populated dynamically by JavaScript -->
+                                </select>
                             </div>
                             <div class="form-group">
                                 <label for="brand">Brand</label>
-                                <select id="brand" class="form-control" required>
+                                <select id="brand" name="brand" class="form-control" required data-field="brand">
                                     <option value="">Select Brand</option>
-                                    <option value="Samsung">Samsung</option>
                                     <option value="Apple">Apple</option>
+                                    <option value="Asus">Asus</option>
+                                    <option value="Bluestar">Bluestar</option>
+                                    <option value="Bosch">Bosch</option>
+                                    <option value="BPL">BPL</option>
+                                    <option value="Carrier">Carrier</option>
+                                    <option value="Daikin">Daikin</option>
+                                    <option value="Dell">Dell</option>
+                                    <option value="Google">Google</option>
+                                    <option value="Haier">Haier</option>
+                                    <option value="Hitachi">Hitachi</option>
+                                    <option value="HP">HP</option>
+                                    <option value="IFB">IFB</option>
+                                    <option value="Impex">Impex</option>
+                                    <option value="Lenovo">Lenovo</option>
+                                    <option value="LG">LG</option>
+                                    <option value="Mi">Mi</option>
+                                    <option value="Mitsubishi">Mitsubishi</option>
+                                    <option value="Moto">Moto</option>
+                                    <option value="OG">OG</option>
                                     <option value="Oneplus">Oneplus</option>
                                     <option value="Oppo">Oppo</option>
-                                    <option value="Vivo">Vivo</option>
                                     <option value="Others">Others</option>
+                                    <option value="Realme">Realme</option>
+                                    <option value="Samsung - CD">Samsung - CD</option>
+                                    <option value="Samsung - Mob">Samsung - Mob</option>
+                                    <option value="Sony">Sony</option>
+                                    <option value="Vivo">Vivo</option>
+                                    <option value="Voltas">Voltas</option>
+                                    <option value="Whirlpool">Whirlpool</option>
                                 </select>
                             </div>
                         </div>
 
                         <div id="apple-code-section" class="form-group hidden mb-lg">
                             <label for="apple-code">Brand Code (Apple Only)</label>
-                            <input type="text" id="apple-code" class="form-control" placeholder="Enter Apple Brand Code">
+                            <input type="text" id="apple-code" name="brand_code" class="form-control" placeholder="Enter Apple Brand Code" data-field="apple-code">
                         </div>
 
                         <div class="tab-container">
@@ -146,28 +717,55 @@
                         <div id="financiers-section">
                             <div class="form-group mb-lg">
                                 <label for="financier">Financier</label>
-                                <select id="financier" class="form-control" required>
+                                <select id="financier" name="financier" class="form-control" required data-field="financier">
                                     <option value="">Select Financier</option>
-                                    <option value="bajaj">Bajaj</option>
-                                    <option value="hdfc">HDFC</option>
-                                    <option value="hdb">HDB</option>
-                                    <option value="idfc">IDFC</option>
-                                    <option value="kotak">Kotak</option>
-                                    <option value="tvs">TVS</option>
-                                    <option value="benow">Benow</option>
-                                    <option value="icici">ICICI</option>
-                                    <option value="home_credit">Home Credit</option>
+                                    <option value="Bajaj">Bajaj</option>
+                                    <option value="Benow">Benow</option>
+                                    <option value="HDB">HDB</option>
+                                    <option value="HDFC">HDFC</option>
+                                    <option value="Home Credit">Home Credit</option>
+                                    <option value="ICICI">ICICI</option>
+                                    <option value="IDFC">IDFC</option>
+                                    <option value="Kotak">Kotak</option>
+                                    <option value="TVS">TVS</option>
                                 </select>
                             </div>
-                            <div id="bajaj-code-section" class="form-group hidden"><label for="bajaj-code">Bajaj Code</label><input type="text" id="bajaj-code" class="form-control" placeholder="Enter Bajaj Code"></div>
-                            <div id="hdfc-code-section" class="form-group hidden"><label for="hdfc-code">HDFC Code</label><input type="text" id="hdfc-code" class="form-control" placeholder="Enter HDFC Code"></div>
-                            <div id="hdb-code-section" class="form-group hidden"><label for="hdb-code">HDB Code</label><input type="text" id="hdb-code" class="form-control" placeholder="Enter HDB Code"></div>
-                            <div id="idfc-code-section" class="form-group hidden"><label for="idfc-code">IDFC Code</label><input type="text" id="idfc-code" class="form-control" placeholder="Enter IDFC Code"></div>
-                            <div id="kotak-code-section" class="form-group hidden"><label for="kotak-code">Kotak Code</label><input type="text" id="kotak-code" class="form-control" placeholder="Enter Kotak Code"></div>
-                            <div id="tvs-code-section" class="form-group hidden"><label for="tvs-code">TVS Code</label><input type="text" id="tvs-code" class="form-control" placeholder="Enter TVS Code"></div>
-                            <div id="benow-code-section" class="form-group hidden"><label for="benow-code">Benow Code</label><input type="text" id="benow-code" class="form-control" placeholder="Enter Benow Code"></div>
-                            <div id="icici-code-section" class="form-group hidden"><label for="icici-code">ICICI Code</label><input type="text" id="icici-code" class="form-control" placeholder="Enter ICICI Code"></div>
-                            <div id="home-credit-code-section" class="form-group hidden"><label for="home-credit-code">Home Credit Code</label><input type="text" id="home-credit-code" class="form-control" placeholder="Enter Home Credit Code"></div>
+                            <div id="bajaj-code-section" class="form-group hidden">
+                                <label for="bajaj-code">Bajaj Code</label>
+                                <input type="text" id="bajaj-code" name="bajaj_code" class="form-control" placeholder="Enter Bajaj Code" data-field="bajaj-code">
+                            </div>
+                            <div id="hdfc-code-section" class="form-group hidden">
+                                <label for="hdfc-code">HDFC Code</label>
+                                <input type="text" id="hdfc-code" name="hdfc_code" class="form-control" placeholder="Enter HDFC Code" data-field="hdfc-code">
+                            </div>
+                            <div id="hdb-code-section" class="form-group hidden">
+                                <label for="hdb-code">HDB Code</label>
+                                <input type="text" id="hdb-code" name="hdb_code" class="form-control" placeholder="Enter HDB Code" data-field="hdb-code">
+                            </div>
+                            <div id="idfc-code-section" class="form-group hidden">
+                                <label for="idfc-code">IDFC Code</label>
+                                <input type="text" id="idfc-code" name="idfc_code" class="form-control" placeholder="Enter IDFC Code" data-field="idfc-code">
+                            </div>
+                            <div id="kotak-code-section" class="form-group hidden">
+                                <label for="kotak-code">Kotak Code</label>
+                                <input type="text" id="kotak-code" name="kotak_code" class="form-control" placeholder="Enter Kotak Code" data-field="kotak-code">
+                            </div>
+                            <div id="tvs-code-section" class="form-group hidden">
+                                <label for="tvs-code">TVS Code</label>
+                                <input type="text" id="tvs-code" name="tvs_code" class="form-control" placeholder="Enter TVS Code" data-field="tvs-code">
+                            </div>
+                            <div id="benow-code-section" class="form-group hidden">
+                                <label for="benow-code">Benow Code</label>
+                                <input type="text" id="benow-code" name="benow_code" class="form-control" placeholder="Enter Benow Code" data-field="benow-code">
+                            </div>
+                            <div id="icici-code-section" class="form-group hidden">
+                                <label for="icici-code">ICICI Code</label>
+                                <input type="text" id="icici-code" name="icici_code" class="form-control" placeholder="Enter ICICI Code" data-field="icici-code">
+                            </div>
+                            <div id="home-credit-code-section" class="form-group hidden">
+                                <label for="home-credit-code">Home Credit Code</label>
+                                <input type="text" id="home-credit-code" name="home_credit_code" class="form-control" placeholder="Enter Home Credit Code" data-field="home-credit-code">
+                            </div>
                         </div>
 
                         <div id="pinelabs-section" class="hidden">
@@ -175,44 +773,25 @@
                                 <label class="mb-0 font-bold">Pine Labs Machine Details (Max 3)</label>
                                 <button type="button" id="add-pinelabs" class="btn btn-outline" style="padding: 0.5rem 1rem;">+ Add More</button>
                             </div>
-                            <div id="pinelabs-entries" class="space-y-md">
-                                <div class="pinelabs-entry grid grid-cols-1-md-4 gap-md">
-                                    <div class="form-group">
-                                        <label class="hidden md:block">POS ID</label>
-                                        <input type="text" name="pos_id" placeholder="POS ID" class="form-control pinelabs-pos-id">
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="hidden md:block">TID</label>
-                                        <input type="text" name="tid" placeholder="TID" class="form-control pinelabs-tid">
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="hidden md:block">Serial No</label>
-                                        <input type="text" name="serial_no" placeholder="Serial No" class="form-control pinelabs-serial-no">
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="hidden md:block">Store ID (PL)</label>
-                                        <input type="text" name="store_id" placeholder="Store ID" class="form-control pinelabs-store-id">
-                                    </div>
-                                </div>
-                            </div>
+                            <div id="pinelabs-entries" class="space-y-md"></div>
                         </div>
 
                         <div class="grid grid-cols-1-md-2 gap-lg mt-lg">
                             <div class="form-group">
-                                <label for="state">State</label>
-                                <input type="text" id="state" class="form-control" placeholder="Enter State" required>
+                                <label for="city">City</label>
+                                <input type="text" id="city" name="city" class="form-control" placeholder="Enter City" required data-field="city">
                             </div>
                             <div class="form-group">
-                                <label for="asm-name">ASM Name</label>
-                                <input type="text" id="asm-name" class="form-control" placeholder="Enter ASM Name" required>
+                                <label for="asm">Area Sales Manager (ASM)</label>
+                                <input type="text" id="asm" name="asm" class="form-control" placeholder="Enter ASM Name" data-field="asm">
                             </div>
                             <div class="form-group">
                                 <label for="mail-id">Mail ID</label>
-                                <input type="email" id="mail-id" class="form-control" placeholder="Enter Mail ID" required>
+                                <input type="email" id="mail-id" name="mail_id" class="form-control" placeholder="Enter Mail ID" readonly required data-field="mail-id">
                             </div>
                             <div class="form-group">
                                 <label for="requested-by">Requested By</label>
-                                <input type="text" id="requested-by" class="form-control" placeholder="Enter Your Name" required>
+                                <input type="text" id="requested-by" name="requested_by" class="form-control" placeholder="Enter Your Name" required data-field="requested-by">
                             </div>
                         </div>
 
@@ -234,39 +813,60 @@
                                 <input type="search" id="yourMappingsSearch" class="form-control" placeholder="Search your mappings...">
                                 <select id="yourMappingsBrandFilter" class="form-control">
                                     <option value="">All Brands</option>
-                                    <option value="Samsung">Samsung</option>
                                     <option value="Apple">Apple</option>
+                                    <option value="Asus">Asus</option>
+                                    <option value="Bluestar">Bluestar</option>
+                                    <option value="Bosch">Bosch</option>
+                                    <option value="BPL">BPL</option>
+                                    <option value="Carrier">Carrier</option>
+                                    <option value="Daikin">Daikin</option>
+                                    <option value="Dell">Dell</option>
+                                    <option value="Google">Google</option>
+                                    <option value="Haier">Haier</option>
+                                    <option value="Hitachi">Hitachi</option>
+                                    <option value="HP">HP</option>
+                                    <option value="IFB">IFB</option>
+                                    <option value="Impex">Impex</option>
+                                    <option value="Lenovo">Lenovo</option>
+                                    <option value="LG">LG</option>
+                                    <option value="Mi">Mi</option>
+                                    <option value="Mitsubishi">Mitsubishi</option>
+                                    <option value="Moto">Moto</option>
+                                    <option value="OG">OG</option>
                                     <option value="Oneplus">Oneplus</option>
                                     <option value="Oppo">Oppo</option>
-                                    <option value="Vivo">Vivo</option>
                                     <option value="Others">Others</option>
+                                    <option value="Realme">Realme</option>
+                                    <option value="Samsung - CD">Samsung - CD</option>
+                                    <option value="Samsung - Mob">Samsung - Mob</option>
+                                    <option value="Sony">Sony</option>
+                                    <option value="Vivo">Vivo</option>
+                                    <option value="Voltas">Voltas</option>
+                                    <option value="Whirlpool">Whirlpool</option>
                                 </select>
                             </div>
                             <button id="download-excel" class="btn btn-secondary">Download Excel</button>
                         </div>
                     </header>
-
                     <table>
                         <thead>
                             <tr>
-                                <th>ID</th>
                                 <th>Store Name</th>
-                                <th>ASM</th>
+                                <th>City</th>
                                 <th>Mail ID</th>
                                 <th>Brand</th>
                                 <th>Brand Code</th>
                                 <th>Financier</th>
                                 <th>Financier Code</th>
-                                <th>Date</th>
                                 <th>Requested By</th>
+                                <th>Requested Date</th>
                                 <th class="table-actions-column">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="mapping-table-body">
-                            <!-- Skeleton rows while loading -->
-                            <tr class="skeleton-row"><td colspan="11"></td></tr>
-                            <tr class="skeleton-row"><td colspan="11"></td></tr>
-                            <tr class="skeleton-row"><td colspan="11"></td></tr>
+                            <tr class="skeleton-row"><td colspan="10"></td></tr>
+                            <tr class="skeleton-row"><td colspan="10"></td></tr>
+                            <tr class="skeleton-row"><td colspan="10"></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -280,20 +880,44 @@
                             <input type="search" id="yourPinelabsSearch" class="form-control" placeholder="Search your Pine Labs details...">
                             <select id="yourPinelabsBrandFilter" class="form-control">
                                 <option value="">All Brands</option>
-                                <option value="Samsung">Samsung</option>
                                 <option value="Apple">Apple</option>
+                                <option value="Asus">Asus</option>
+                                <option value="Bluestar">Bluestar</option>
+                                <option value="Bosch">Bosch</option>
+                                <option value="BPL">BPL</option>
+                                <option value="Carrier">Carrier</option>
+                                <option value="Daikin">Daikin</option>
+                                <option value="Dell">Dell</option>
+                                <option value="Google">Google</option>
+                                <option value="Haier">Haier</option>
+                                <option value="Hitachi">Hitachi</option>
+                                <option value="HP">HP</option>
+                                <option value="IFB">IFB</option>
+                                <option value="Impex">Impex</option>
+                                <option value="Lenovo">Lenovo</option>
+                                <option value="LG">LG</option>
+                                <option value="Mi">Mi</option>
+                                <option value="Mitsubishi">Mitsubishi</option>
+                                <option value="Moto">Moto</option>
+                                <option value="OG">OG</option>
                                 <option value="Oneplus">Oneplus</option>
                                 <option value="Oppo">Oppo</option>
-                                <option value="Vivo">Vivo</option>
                                 <option value="Others">Others</option>
+                                <option value="Realme">Realme</option>
+                                <option value="Samsung - CD">Samsung - CD</option>
+                                <option value="Samsung - Mob">Samsung - Mob</option>
+                                <option value="Sony">Sony</option>
+                                <option value="Vivo">Vivo</option>
+                                <option value="Voltas">Voltas</option>
+                                <option value="Whirlpool">Whirlpool</option>
                             </select>
                         </div>
                     </div>
                     <table>
                         <thead>
                             <tr>
-                                <th>PL ID</th>
-                                <th>Mapping ID</th>
+                                <!-- <th>PL ID</th>
+                                <th>Mapping ID</th> -->
                                 <th>Store Name</th>
                                 <th>Brand</th>
                                 <th>POS ID</th>
@@ -304,7 +928,6 @@
                             </tr>
                         </thead>
                         <tbody id="pinelabs-table-body">
-                            <!-- Skeleton rows while loading -->
                             <tr class="skeleton-row"><td colspan="9"></td></tr>
                             <tr class="skeleton-row"><td colspan="9"></td></tr>
                             <tr class="skeleton-row"><td colspan="9"></td></tr>
@@ -322,48 +945,64 @@
                                 <input type="search" id="overallMainMappingsSearch" class="form-control" placeholder="Search all mappings...">
                                 <select id="overallMainMappingsBrandFilter" class="form-control">
                                     <option value="">All Brands</option>
-                                    <option value="Samsung">Samsung</option>
                                     <option value="Apple">Apple</option>
+                                    <option value="Asus">Asus</option>
+                                    <option value="Bluestar">Bluestar</option>
+                                    <option value="Bosch">Bosch</option>
+                                    <option value="BPL">BPL</option>
+                                    <option value="Carrier">Carrier</option>
+                                    <option value="Daikin">Daikin</option>
+                                    <option value="Dell">Dell</option>
+                                    <option value="Google">Google</option>
+                                    <option value="Haier">Haier</option>
+                                    <option value="Hitachi">Hitachi</option>
+                                    <option value="HP">HP</option>
+                                    <option value="IFB">IFB</option>
+                                    <option value="Impex">Impex</option>
+                                    <option value="Lenovo">Lenovo</option>
+                                    <option value="LG">LG</option>
+                                    <option value="Mi">Mi</option>
+                                    <option value="Mitsubishi">Mitsubishi</option>
+                                    <option value="Moto">Moto</option>
+                                    <option value="OG">OG</option>
                                     <option value="Oneplus">Oneplus</option>
                                     <option value="Oppo">Oppo</option>
-                                    <option value="Vivo">Vivo</option>
                                     <option value="Others">Others</option>
+                                    <option value="Realme">Realme</option>
+                                    <option value="Samsung - CD">Samsung - CD</option>
+                                    <option value="Samsung - Mob">Samsung - Mob</option>
+                                    <option value="Sony">Sony</option>
+                                    <option value="Vivo">Vivo</option>
+                                    <option value="Voltas">Voltas</option>
+                                    <option value="Whirlpool">Whirlpool</option>
                                 </select>
                             </div>
                             <button id="download-overall-main-excel" class="btn btn-secondary">Download Excel</button>
                         </div>
                     </header>
-                    <!-- Admin notification input form -->
-                    <form id="admin-notification-form" class="hidden">
-                        <textarea id="admin-notification-input" placeholder="Enter notification for non-admin users..." maxlength="500"></textarea>
-                        <button type="submit" class="btn btn-primary">Send Notification</button>
-                    </form>
                     <table>
                         <thead>
                             <tr>
-                                <th>ID</th>
-                                <th>Store</th>
-                                <th>State</th>
-                                <th>ASM</th>
+                                <th>Store Name</th>
+                                <th>City</th>
                                 <th>Mail ID</th>
                                 <th>Brand</th>
                                 <th>Brand Code</th>
                                 <th>Financier</th>
                                 <th>Financier Code</th>
-                                <th>Req. By</th>
-                                <th>Date</th>
+                                <th>Requested By</th>
+                                <th>Requested Date</th>
                                 <th class="table-actions-column">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="overall-main-mapping-table-body">
-                            <!-- Skeleton rows while loading -->
-                            <tr class="skeleton-row"><td colspan="12"></td></tr>
-                            <tr class="skeleton-row"><td colspan="12"></td></tr>
-                            <tr class="skeleton-row"><td colspan="12"></td></tr>
+                            <tr class="skeleton-row"><td colspan="10"></td></tr>
+                            <tr class="skeleton-row"><td colspan="10"></td></tr>
+                            <tr class="skeleton-row"><td colspan="10"></td></tr>
                         </tbody>
                     </table>
                 </div>
-                <div class="table-container">
+                <div id="overall-pinelabs-content" class="table-container">
                     <header class="flex justify-between items-center table-header-title">
                         <h3>Overall Pine Labs Details</h3>
                         <div class="flex items-center gap-md">
@@ -371,23 +1010,46 @@
                                 <input type="search" id="overallPinelabsSearch" class="form-control" placeholder="Search all Pine Labs details...">
                                 <select id="overallPinelabsBrandFilter" class="form-control">
                                     <option value="">All Brands</option>
-                                    <option value="Samsung">Samsung</option>
                                     <option value="Apple">Apple</option>
+                                    <option value="Asus">Asus</option>
+                                    <option value="Bluestar">Bluestar</option>
+                                    <option value="Bosch">Bosch</option>
+                                    <option value="BPL">BPL</option>
+                                    <option value="Carrier">Carrier</option>
+                                    <option value="Daikin">Daikin</option>
+                                    <option value="Dell">Dell</option>
+                                    <option value="Google">Google</option>
+                                    <option value="Haier">Haier</option>
+                                    <option value="Hitachi">Hitachi</option>
+                                    <option value="HP">HP</option>
+                                    <option value="IFB">IFB</option>
+                                    <option value="Impex">Impex</option>
+                                    <option value="Lenovo">Lenovo</option>
+                                    <option value="LG">LG</option>
+                                    <option value="Mi">Mi</option>
+                                    <option value="Mitsubishi">Mitsubishi</option>
+                                    <option value="Moto">Moto</option>
+                                    <option value="OG">OG</option>
                                     <option value="Oneplus">Oneplus</option>
                                     <option value="Oppo">Oppo</option>
-                                    <option value="Vivo">Vivo</option>
                                     <option value="Others">Others</option>
+                                    <option value="Realme">Realme</option>
+                                    <option value="Samsung - CD">Samsung - CD</option>
+                                    <option value="Samsung - Mob">Samsung - Mob</option>
+                                    <option value="Sony">Sony</option>
+                                    <option value="Vivo">Vivo</option>
+                                    <option value="Voltas">Voltas</option>
+                                    <option value="Whirlpool">Whirlpool</option>
                                 </select>
                             </div>
-                            <button id="load-pinelabs-details" class="btn btn-secondary">Load Pine Labs Details</button>
                             <button id="download-overall-pinelabs-excel" class="btn btn-secondary">Download Excel</button>
                         </div>
                     </header>
                     <table>
                         <thead>
                             <tr>
-                                <th>PL ID</th>
-                                <th>Mapping ID</th>
+                                <!-- <th>PL ID</th>
+                                <th>Mapping ID</th> -->
                                 <th>Store Name</th>
                                 <th>Brand</th>
                                 <th>POS ID</th>
@@ -398,7 +1060,6 @@
                             </tr>
                         </thead>
                         <tbody id="overall-pinelabs-table-body">
-                            <!-- Skeleton rows while loading -->
                             <tr class="skeleton-row"><td colspan="9"></td></tr>
                             <tr class="skeleton-row"><td colspan="9"></td></tr>
                             <tr class="skeleton-row"><td colspan="9"></td></tr>
@@ -434,6 +1095,7 @@
         window.checkAuthenticationAndLoad = async () => {
             const loadingScreen = document.getElementById('loading-screen');
             const appContainer = document.getElementById('app-container');
+            const logoutBtn = document.getElementById('logout-btn');
 
             const { data: { session } = {}, error } = await window.supabaseClient.auth.getSession();
             if (error || !session) {
@@ -441,7 +1103,12 @@
             } else {
                 appContainer.classList.remove('hidden');
                 loadingScreen.classList.add('hidden');
-                await initializeApp(); // This will be defined in index.js
+                if (document.getElementById('mail-id')) {
+                    document.getElementById('mail-id').value = session.user.email;
+                }
+                if (logoutBtn) {
+                    logoutBtn.textContent = session.user.email;
+                }
             }
         };
         window.checkAuthenticationAndLoad();
