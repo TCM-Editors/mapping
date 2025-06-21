@@ -1,1171 +1,1188 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    const mappingForm = document.getElementById('mapping-form');
-    const mappingIdInput = document.getElementById('mapping-id');
-    const storeNameSelect = document.getElementById('store-name');
-    const brandSelect = document.getElementById('brand');
-    const appleCodeSection = document.getElementById('apple-code-section');
-    const appleCodeInput = document.getElementById('apple-code');
-    const financierSelect = document.getElementById('financier');
-    const financierCodeSections = {
-        bajaj: document.getElementById('bajaj-code-section'),
-        hdfc: document.getElementById('hdfc-code-section'),
-        hdb: document.getElementById('hdb-code-section'),
-        idfc: document.getElementById('idfc-code-section'),
-        kotak: document.getElementById('kotak-code-section'),
-        tvs: document.getElementById('tvs-code-section'),
-        benow: document.getElementById('benow-code-section'),
-        icici: document.getElementById('icici-code-section'),
-        home_credit: document.getElementById('home-credit-code-section'),
+    // DOM Elements
+    const elements = {
+        mappingForm: document.getElementById('mapping-form'),
+        storeName: document.getElementById('store-name'),
+        brand: document.getElementById('brand'),
+        appleCode: document.getElementById('apple-code'),
+        appleCodeSection: document.getElementById('apple-code-section'),
+        financier: document.getElementById('financier'),
+        bajajCodeSection: document.getElementById('bajaj-code-section'),
+        hdfcCodeSection: document.getElementById('hdfc-code-section'),
+        hdbCodeSection: document.getElementById('hdb-code-section'),
+        idfcCodeSection: document.getElementById('idfc-code-section'),
+        kotakCodeSection: document.getElementById('kotak-code-section'),
+        tvsCodeSection: document.getElementById('tvs-code-section'),
+        benowCodeSection: document.getElementById('benow-code-section'),
+        iciciCodeSection: document.getElementById('icici-code-section'),
+        homeCreditCodeSection: document.getElementById('home-credit-code-section'),
+        city: document.getElementById('city'),
+        asm: document.getElementById('asm'),
+        mailId: document.getElementById('mail-id'),
+        requestedBy: document.getElementById('requested-by'),
+        financierTab: document.getElementById('financier-tab'),
+        pinelabsTab: document.getElementById('pinelabs-tab'),
+        overallMappingTab: document.getElementById('overall-mapping-tab'), // New tab for overall mappings
+        financiersSection: document.getElementById('financiers-section'),
+        pinelabsSection: document.getElementById('pinelabs-section'),
+        overallMainMappingSection: document.getElementById('overall-main-mapping-section'), // New section
+        overallPinelabsSection: document.getElementById('overall-pinelabs-section'), // New section
+        pinelabsEntries: document.getElementById('pinelabs-entries'),
+        addPinelabs: document.getElementById('add-pinelabs'),
+        submitBtn: document.getElementById('submit-btn'),
+        submitText: document.getElementById('submit-text'),
+        submitLoading: document.getElementById('submit-loading'),
+        cancelEditBtn: document.getElementById('cancel-edit-btn'),
+        yourMappingsSearch: document.getElementById('yourMappingsSearch'),
+        yourMappingsBrandFilter: document.getElementById('yourMappingsBrandFilter'),
+        yourPinelabsSearch: document.getElementById('yourPinelabsSearch'),
+        yourPinelabsBrandFilter: document.getElementById('yourPinelabsBrandFilter'),
+        overallMainMappingsSearch: document.getElementById('overallMainMappingsSearch'),
+        overallMainMappingsBrandFilter: document.getElementById('overallMainMappingsBrandFilter'),
+        overallPinelabsSearch: document.getElementById('overallPinelabsSearch'),
+        overallPinelabsBrandFilter: document.getElementById('overallPinelabsBrandFilter'),
+        downloadExcel: document.getElementById('download-excel'),
+        downloadOverallMainExcel: document.getElementById('download-overall-main-excel'),
+        downloadOverallPinelabsExcel: document.getElementById('download-overall-pinelabs-excel'),
+        mappingTableBody: document.getElementById('mapping-table-body'),
+        pinelabsTableBody: document.getElementById('pinelabs-table-body'),
+        overallMainMappingTableBody: document.getElementById('overall-main-mapping-table-body'),
+        overallPinelabsTableBody: document.getElementById('overall-pinelabs-table-body'),
     };
-    const stateInput = document.getElementById('state');
-    const asmNameInput = document.getElementById('asm-name');
-    const mailIdInput = document.getElementById('mail-id');
-    const requestedByInput = document.getElementById('requested-by');
 
-    const submitBtn = document.getElementById('submit-btn');
-    const submitText = document.getElementById('submit-text');
-    const submitLoading = document.getElementById('submit-loading');
-    const cancelEditBtn = document.getElementById('cancel-edit-btn');
-
-    const formSection = document.getElementById('form-section');
-
-    const mappingTableBody = document.getElementById('mapping-table-body');
-    const pinelabsTableBody = document.getElementById('pinelabs-table-body');
-
-    const financierTab = document.getElementById('financier-tab');
-    const pinelabsTab = document.getElementById('pinelabs-tab');
-    const financiersSection = document.getElementById('financiers-section');
-    const pinelabsSection = document.getElementById('pinelabs-section');
-    const activeTabInput = document.getElementById('active-tab');
-    const addPinelabsBtn = document.getElementById('add-pinelabs');
-    const pinelabsEntriesContainer = document.getElementById('pinelabs-entries');
-
+    // State Variables
     window.isEditMode = false;
     window.currentEditData = null;
+    let isSubmitting = false;
+    let userEmail = '';
+    let lastSubmitTime = 0;
+    const DEBOUNCE_DELAY = 1000;
+    let allPineLabsData = [];
+    let allMappingsData = []; // To store all mappings for dropdown population
+
+    // Initialize navigation.appState if it doesn't exist
+    if (!window.navigation) {
+        window.navigation = { appState: {} };
+    } else if (!window.navigation.appState) {
+        window.navigation.appState = {};
+    }
+
+    // Pine Labs Form Setup
+    const pinelabsEntriesDomElement = elements.pinelabsEntries;
+    const initialPosIdRequired = pinelabsEntriesDomElement?.querySelector('.pinelabs-entry input[name="pos_id"]')?.hasAttribute('required') || false;
+
+    // Utility Functions
+    const showToast = window.showToast;
+
+    const debounce = (func, delay) => {
+        let timeoutId;
+        return (...args) => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => func(...args), delay);
+        };
+    };
 
     const showLoading = () => {
-        submitBtn.disabled = true;
-        submitText.classList.add('hidden');
-        submitLoading.classList.remove('hidden');
+        if (elements.submitBtn) elements.submitBtn.disabled = true;
+        if (elements.submitText) elements.submitText.classList.add('hidden');
+        if (elements.submitLoading) elements.submitLoading.classList.remove('hidden');
     };
 
     const hideLoading = () => {
-        submitBtn.disabled = false;
-        submitText.classList.remove('hidden');
-        submitLoading.classList.add('hidden');
+        if (elements.submitBtn) elements.submitBtn.disabled = false;
+        if (elements.submitText) elements.submitText.classList.remove('hidden');
+        if (elements.submitLoading) elements.submitLoading.classList.add('hidden');
     };
 
     const handleOperationError = (operation, error) => {
-        const userFriendlyMessage = (error.code === '42501' || (error.message && error.message.includes('policy')))
-            ? 'Permission denied. You may not have the necessary rights for this operation.'
-            : `${operation} failed: ${error.message || error}`;
-        window.showToast(userFriendlyMessage, 'error');
-        console.error(`Error during ${operation}:`, error);
-        return false;
+        console.error(${operation} error:, error);
+        showToast(${operation} failed: ${error.message}, 'error');
     };
 
+    const checkForDuplicateMapping = async (payload) => {
+        try {
+            const { data, error } = await window.supabaseClient
+                .from('finance_mappings')
+                .select('id')
+                .eq('store_name', payload.store_name)
+                .eq('brand', payload.brand)
+                .eq('financier', payload.financier);
+            
+            if (error) throw error;
+            return data.length > 0;
+        } catch (error) {
+            console.error('Error checking for duplicate:', error);
+            return false;
+        }
+    };
+
+    window.checkUserRole = window.checkUserRole || (async () => {
+        try {
+            const { data: { user } } = await window.supabaseClient.auth.getUser();
+            if (!user) throw new Error('User not authenticated');
+            
+            const { data: roleData, error } = await window.supabaseClient
+                .from('user_stores')
+                .select('role')
+                .eq('email_id', user.email);
+            
+            if (error) throw error;
+            if (!roleData || roleData.length === 0) {
+                console.warn(No role found for user with email ${user.email}, defaulting to non-admin role);
+                return 'non-admin';
+            }
+            return roleData[0].role || 'non-admin';
+        } catch (err) {
+            console.warn('Error checking role, defaulting to non-admin role:', err.message);
+            return 'non-admin';
+        }
+    });
+
+    // Pine Labs Form Functions
+    window.createPinelabsEntryHtml = (pos_id = '', tid = '', serial_no = '', store_id = '', includeRemoveButton = false, id = null) => {
+        const displayId = id !== null ? data-id="${id}" : '';
+        const currentEntries = pinelabsEntriesDomElement ? pinelabsEntriesDomElement.children.length : 0;
+        const requiredAttribute = (currentEntries === 0 && pos_id === '' && initialPosIdRequired) ? 'required' : '';
+
+        return `
+            <div class="pinelabs-entry grid grid-cols-1-md-4 gap-md" ${displayId}>
+                <div class="form-group mb-0">
+                    <label class="hidden md:block">POS ID</label>
+                    <input type="text" name="pos_id" placeholder="POS ID" class="form-control pinelabs-pos-id" value="${pos_id}" ${requiredAttribute}>
+                </div>
+                <div class="form-group mb-0">
+                    <label class="hidden md:block">TID</label>
+                    <input type="text" name="tid" placeholder="TID" class="form-control pinelabs-tid" value="${tid}">
+                </div>
+                <div class="form-group mb-0">
+                    <label class="hidden md:block">Serial No</label>
+                    <input type="text" name="serial_no" placeholder="Serial No" class="form-control pinelabs-serial-no" value="${serial_no}">
+                </div>
+                <div class="form-group mb-0" style="position: relative;">
+                    <label class="hidden md:block">Store ID (PL)</label>
+                    <input type="text" name="store_id" placeholder="Store ID" class="form-control pinelabs-store-id" value="${store_id}">
+                    ${includeRemoveButton ? '<button type="button" class="btn-icon-only btn-delete-icon remove-pinelabs-entry" style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); border: none;"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>' : ''}
+                </div>
+            </div>
+        `;
+    };
+
+    window.addPinelabsEntryWithRemoveButton = () => {
+        if (pinelabsEntriesDomElement && pinelabsEntriesDomElement.children.length < 3) {
+            pinelabsEntriesDomElement.insertAdjacentHTML('beforeend', window.createPinelabsEntryHtml('', '', '', '', true));
+            window.checkAndAdjustRemoveButtons();
+        } else {
+            showToast('Maximum 3 Pine Labs entries allowed', 'error');
+        }
+    };
+
+    window.createEmptyPinelabsEntry = () => {
+        if (pinelabsEntriesDomElement) {
+            pinelabsEntriesDomElement.innerHTML = '';
+            pinelabsEntriesDomElement.insertAdjacentHTML('beforeend', window.createPinelabsEntryHtml());
+            window.checkAndAdjustRemoveButtons();
+            if (initialPosIdRequired) {
+                const firstPosInput = pinelabsEntriesDomElement.querySelector('.pinelabs-pos-id');
+                if (firstPosInput) firstPosInput.setAttribute('required', 'true');
+            }
+        }
+    };
+
+    window.checkAndAdjustRemoveButtons = () => {
+        if (!pinelabsEntriesDomElement) return;
+        const entries = pinelabsEntriesDomElement.children;
+        const removeButtons = pinelabsEntriesDomElement.querySelectorAll('.remove-pinelabs-entry');
+        removeButtons.forEach(btn => {
+            btn.style.display = entries.length <= 1 ? 'none' : 'block';
+            btn.removeEventListener('click', btn._handler);
+            btn._handler = () => {
+                btn.closest('.pinelabs-entry').remove();
+                window.checkAndAdjustRemoveButtons();
+            };
+            btn.addEventListener('click', btn._handler);
+        });
+    };
+
+    // Form Initialization
     const loadStoreNames = async () => {
         try {
-            const { data, error } = await window.supabaseClient.from('user_stores').select('store_name');
+            const { data: { user } } = await window.supabaseClient.auth.getUser();
+            userEmail = user?.email || '';
+            if (!userEmail) throw new Error('User not authenticated');
+
+            const userRole = await window.checkUserRole();
+            let { data, error } = await window.supabaseClient
+                .from('user_stores')
+                .select('store_name')
+                .order('store_name', { ascending: true });
+
+            if (userRole === 'admin' && error && error.code === '42P17') {
+                console.warn('RLS recursion detected, attempting admin bypass...');
+                const adminClient = new SupabaseClient('https://ecjkxnlejaiupmlyitgu.supabase.co', {
+                    anon: 'your-service-role-key', // Replace with actual service role key
+                    auth: { persistSession: false }
+                });
+                ({ data, error } = await adminClient
+                    .from('user_stores')
+                    .select('store_name')
+                    .order('store_name', { ascending: true }));
+            }
+
             if (error) throw error;
-            storeNameSelect.innerHTML = '<option value="">Select Store Name</option>';
-            data.forEach(store => {
-                const option = document.createElement('option');
-                option.value = store.store_name;
-                option.textContent = store.store_name;
-                storeNameSelect.appendChild(option);
-            });
+
+            if (elements.storeName) {
+                elements.storeName.innerHTML = '<option value="">Select Store Name</option>';
+                if (data.length === 0) {
+                    showToast('No stores available. Contact support.', 'warning');
+                    elements.storeName.innerHTML = '<option value="">No stores available</option>';
+                } else {
+                    data.forEach(store => {
+                        const option = document.createElement('option');
+                        option.value = store.store_name;
+                        option.textContent = store.store_name;
+                        elements.storeName.appendChild(option);
+                    });
+                }
+            }
         } catch (error) {
-            handleOperationError('Loading Store Names', error);
+            console.error('Load Store Names error:', error);
+            if (error.code === '42P17') {
+                showToast('Store data unavailable due to policy recursion. Contact support or use admin bypass.', 'error');
+            } else {
+                handleOperationError('Load Store Names', error);
+            }
+            if (elements.storeName) {
+                elements.storeName.innerHTML = '<option value="">No stores available</option>';
+            }
         }
     };
 
     const updateBrandAndFinancierDisplay = (preserveFinancier = false, preserveAppleCode = false) => {
-        const selectedBrand = brandSelect.value;
-        console.log('[updateBrandAndFinancierDisplay] Selected brand:', selectedBrand);
+        const brand = elements.brand?.value || '';
 
-        let currentAppleCodeValue = null;
-        if (appleCodeInput) {
-            currentAppleCodeValue = appleCodeInput.value.trim();
-            console.log('[updateBrandAndFinancierDisplay] Preserving Apple code value:', currentAppleCodeValue);
-        }
-
-        if (!preserveAppleCode && selectedBrand !== 'Apple') {
-            appleCodeSection.classList.add('hidden');
-            appleCodeInput.removeAttribute('required');
-            appleCodeInput.value = '';
-        }
-
-        if (selectedBrand === 'Apple') {
-            appleCodeSection.classList.remove('hidden');
-            appleCodeInput.setAttribute('required', 'true');
-            if (currentAppleCodeValue && (preserveAppleCode || appleCodeInput.value === '')) {
-                appleCodeInput.value = currentAppleCodeValue;
-                console.log('[updateBrandAndFinancierDisplay] Restored Apple code value:', currentAppleCodeValue);
-            }
-            console.log('[updateBrandAndFinancierDisplay] Showing Apple code section');
-        }
-
-        const selectedFinancier = financierSelect.value;
-        console.log('[updateBrandAndFinancierDisplay] Selected financier:', selectedFinancier);
-
-        let currentFinancierCodeValue = null;
-        if (selectedFinancier && financierCodeSections[selectedFinancier]) {
-            const currentCodeSection = financierCodeSections[selectedFinancier];
-            const currentCodeInput = currentCodeSection.querySelector('input[id$="-code"]');
-            if (currentCodeInput) {
-                currentFinancierCodeValue = currentCodeInput.value.trim();
-                console.log(`[updateBrandAndFinancierDisplay] Preserving ${selectedFinancier}-code value:`, currentFinancierCodeValue);
+        if (elements.appleCodeSection) {
+            elements.appleCodeSection.classList.toggle('hidden', brand !== 'Apple');
+            if (!preserveAppleCode && brand !== 'Apple' && elements.appleCode) {
+                elements.appleCode.value = '';
             }
         }
 
-        if (!preserveFinancier) {
-            Object.values(financierCodeSections).forEach(sec => {
-                if (sec) sec.classList.add('hidden');
-            });
-            document.querySelectorAll('[id$="-code"]').forEach(input => {
-                const inputFinancier = input.id.replace('-code', '');
-                if (inputFinancier !== selectedFinancier) {
-                    input.removeAttribute('required');
-                    input.value = '';
-                }
-            });
-
-            if (selectedFinancier && financierCodeSections[selectedFinancier]) {
-                const codeSection = financierCodeSections[selectedFinancier];
-                codeSection.classList.remove('hidden');
-                const codeInput = codeSection.querySelector('input[id$="-code"]');
-                if (codeInput) {
-                    codeInput.setAttribute('required', 'true');
-                    if (currentFinancierCodeValue) {
-                        codeInput.value = currentFinancierCodeValue;
-                        console.log(`[updateBrandAndFinancierDisplay] Restored ${selectedFinancier}-code value:`, currentFinancierCodeValue);
-                    }
-                    console.log(`[updateBrandAndFinancierDisplay] Showing code section for ${selectedFinancier}`);
-                } else {
-                    console.warn(`[updateBrandAndFinancierDisplay] Code input for ${selectedFinancier} not found in section`);
-                }
-            } else if (selectedFinancier) {
-                console.warn(`[updateBrandAndFinancierDisplay] Code section for ${selectedFinancier} not found in financierCodeSections`);
-            }
-        }
-    };
-
-    brandSelect.addEventListener('change', () => updateBrandAndFinancierDisplay());
-    financierSelect.addEventListener('change', () => {
-        console.log('Financier dropdown changed to:', financierSelect.value);
-        updateBrandAndFinancierDisplay(false, true);
-    });
-
-    window.switchFormTab = (tab) => {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        activeTabInput.value = tab;
-
-        if (tab === 'financier') {
-            financierTab.classList.add('active');
-            financiersSection.classList.remove('hidden');
-            pinelabsSection.classList.add('hidden');
-
-            financierSelect.setAttribute('required', 'true');
-            pinelabsEntriesContainer.querySelectorAll('input').forEach(input => input.removeAttribute('required'));
-
-            updateBrandAndFinancierDisplay(false, true);
-        } else if (tab === 'pinelabs') {
-            pinelabsTab.classList.add('active');
-            pinelabsSection.classList.remove('hidden');
-            financiersSection.classList.add('hidden');
-
-            financierSelect.removeAttribute('required');
-            if (pinelabsEntriesContainer) {
-                const firstPosId = pinelabsEntriesContainer.querySelector('.pinelabs-pos-id');
-                if (firstPosId && !firstPosId.value) firstPosId.setAttribute('required', 'true');
-            }
-
-            updateBrandAndFinancierDisplay(true, true);
-        }
-    };
-
-    financierTab.addEventListener('click', () => window.switchFormTab('financier'));
-    pinelabsTab.addEventListener('click', () => window.switchFormTab('pinelabs'));
-
-    if (addPinelabsBtn) {
-        addPinelabsBtn.addEventListener('click', () => {
-            if (pinelabsEntriesContainer.children.length < 3) {
-                window.addPinelabsEntryWithRemoveButton();
-            } else {
-                window.showToast('Maximum 3 Pine Labs entries allowed.', 'info');
-            }
-        });
-    }
-
-    if (pinelabsEntriesContainer) {
-        pinelabsEntriesContainer.addEventListener('click', (event) => {
-            if (event.target.closest('.remove-pinelabs-entry')) {
-                const entryToRemove = event.target.closest('.pinelabs-entry');
-                if (pinelabsEntriesContainer.children.length > 1) {
-                    entryToRemove.remove();
-                    window.checkAndAdjustRemoveButtons();
-                    const firstPosId = pinelabsEntriesContainer.querySelector('.pinelabs-pos-id');
-                    if (pinelabsEntriesContainer.children.length === 1 && firstPosId) {
-                        firstPosId.setAttribute('required', 'true');
-                    }
-                }
-            }
-        });
-        pinelabsEntriesContainer.addEventListener('input', (event) => {
-            if (event.target.classList.contains('pinelabs-pos-id')) {
-                const allPosInputs = pinelabsEntriesContainer.querySelectorAll('.pinelabs-pos-id');
-                allPosInputs.forEach((input, index) => {
-                    if (input.value.trim() !== '') {
-                        input.removeAttribute('required');
-                    } else if (index === 0 && activeTabInput.value === 'pinelabs' && allPosInputs.length === 1) {
-                        input.setAttribute('required', 'true');
-                    } else {
-                        input.removeAttribute('required');
-                    }
-                });
-            }
-        });
-    }
-
-    const resetForm = () => {
-        mappingForm.reset();
-        mappingIdInput.value = '';
-        window.isEditMode = false;
-        window.currentEditData = null;
-        cancelEditBtn.classList.add('hidden');
-        submitText.textContent = 'Submit Mapping Request';
-
-        updateBrandAndFinancierDisplay();
-        window.createEmptyPinelabsEntry();
-        window.switchFormTab('financier');
-
-        appleCodeInput.value = '';
-        formSection.style.display = 'block';
-    };
-
-    window.createEmptyPinelabsEntry();
-    window.switchFormTab('financier');
-
-    mappingForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        showLoading();
-
-        console.log('[Form Submission] Checking form validity...');
-        const isFormValid = mappingForm.checkValidity();
-        console.log('[Form Submission] Form validity:', isFormValid);
-        console.log('[Form Submission] Form values:', {
-            storeName: storeNameSelect.value,
-            brand: brandSelect.value,
-            financier: financierSelect.value,
-            appleCode: appleCodeInput.value,
-            state: stateInput.value,
-            asm: asmNameInput.value,
-            mailId: mailIdInput.value,
-            requestedBy: requestedByInput.value,
-        });
-
-        if (!isFormValid) {
-            console.log('[Form Submission] Form validation failed. Reporting validity...');
-            hideLoading();
-            window.showToast('Please fill in all required fields.', 'error');
-            mappingForm.reportValidity();
-            return;
-        }
-
-        const activeTab = activeTabInput.value;
-        const currentMappingId = mappingIdInput.value;
-        console.log('[Form Submission] Active tab:', activeTab);
-        console.log('[Form Submission] Current mapping ID:', currentMappingId);
-
-        const { data: { user } = { user: null }, error: userError } = await window.supabaseClient.auth.getUser();
-        if (userError || !user) {
-            console.log('[Form Submission] Authentication failed:', userError);
-            window.showToast('Authentication required.', 'error');
-            hideLoading();
-            return;
-        }
-
-        const commonPayload = {
-            store_name: storeNameSelect.value || null,
-            brand: brandSelect.value || null,
-            state: stateInput.value || null,
-            asm: asmNameInput.value || null,
-            mail_id: mailIdInput.value || null,
-            requested_by: requestedByInput.value || null,
-            requested_date: new Date().toISOString(),
-            user_id: user.id
+        const financier = elements.financier?.value || '';
+        const codeSections = {
+            'Bajaj': elements.bajajCodeSection,
+            'Benow': elements.benowCodeSection,
+            'HDB': elements.hdbCodeSection,
+            'HDFC': elements.hdfcCodeSection,
+            'Home Credit': elements.homeCreditCodeSection,
+            'ICICI': elements.iciciCodeSection,
+            'IDFC': elements.idfcCodeSection,
+            'Kotak': elements.kotakCodeSection,
+            'TVS': elements.tvsCodeSection
         };
 
-        if (brandSelect.value === 'Apple') {
-            console.log('[Form Submission] Brand is Apple, capturing Apple code');
-            console.log('[Form Submission] Raw Apple code input value:', appleCodeInput.value);
-            const appleCodeValue = appleCodeInput.value.trim();
-            console.log('[Form Submission] Trimmed Apple code value:', appleCodeValue);
-            if (!appleCodeValue) {
-                console.warn('[Form Submission] Apple code is empty!');
-                window.showToast('Please enter a valid Apple code.', 'error');
-                hideLoading();
-                return;
-            }
-            commonPayload.brand_code = appleCodeValue || null;
-            console.log('[Form Submission] Setting brand_code in payload to:', commonPayload.brand_code);
-        } else {
-            commonPayload.brand_code = null;
-            console.log('[Form Submission] Brand is not Apple, setting brand_code to null');
-        }
-
-        let isFinancierMapping = false;
-        let financierDetails = null;
-        let isPineLabsMapping = false;
-        let pineLabsDetails = [];
-
-        // Always collect Pine Labs details, regardless of the active tab
-        const pinelabsEntryElements = pinelabsEntriesContainer.querySelectorAll('.pinelabs-entry');
-        console.log('[Form Submission] Collecting Pine Labs entries:', pinelabsEntryElements.length);
-        pinelabsEntryElements.forEach(entry => {
-            const posId = entry.querySelector('.pinelabs-pos-id').value.trim();
-            if (posId) {
-                const plId = entry.dataset.id ? parseInt(entry.dataset.id) : null;
-                const newEntry = {
-                    id: plId,
-                    pos_id: posId,
-                    tid: entry.querySelector('.pinelabs-tid').value.trim() ?? null,
-                    serial_no: entry.querySelector('.pinelabs-serial-no').value.trim() ?? null,
-                    store_id: entry.querySelector('.pinelabs-store-id').value.trim() ?? null,
-                };
-                pineLabsDetails.push(newEntry);
-                console.log('[Form Submission] Added Pine Labs entry:', newEntry);
+        Object.values(codeSections).forEach(section => {
+            if (section) {
+                section.classList.add('hidden');
+                const input = section.querySelector('input');
+                if (input && !preserveFinancier) {
+                    input.value = '';
+                }
             }
         });
 
-        if (pineLabsDetails.length > 0) {
-            isPineLabsMapping = true;
-            console.log('[Form Submission] Pine Labs details collected:', JSON.stringify(pineLabsDetails, null, 2));
-        } else {
-            console.log('[Form Submission] No valid Pine Labs entries found');
+        if (financier && codeSections[financier]) {
+            codeSections[financier].classList.remove('hidden');
         }
+    };
 
-        // Handle financier details if the financier tab is active or if financier fields are filled
-        const normalizedFinancier = financierSelect.value;
-        if (activeTab === 'financier' || (normalizedFinancier && normalizedFinancier.trim() !== '')) {
-            isFinancierMapping = true;
-
-            const financierOptions = Array.from(financierSelect.options).map(opt => opt.value);
-            console.log('[Form Submission] Available financier options:', financierOptions);
-            console.log('[Form Submission] Selected financier:', normalizedFinancier);
-
-            if (!normalizedFinancier || normalizedFinancier.trim() === "") {
-                console.log('[Form Submission] Financier is empty or invalid');
-                hideLoading();
-                window.showToast("Financier cannot be empty. Please select an option.", "error");
-                return;
-            }
-
-            const codeSection = financierCodeSections[normalizedFinancier];
-            let financierCodeValue = null;
-
-            if (codeSection) {
-                console.log(`[Form Submission] Found code section for ${normalizedFinancier}:`, codeSection);
-                const codeInput = codeSection.querySelector('input[id$="-code"]');
-                if (codeInput) {
-                    console.log(`[Form Submission] Found code input for ${normalizedFinancier}:`, codeInput);
-                    console.log(`[Form Submission] Raw value of ${normalizedFinancier}-code input:`, codeInput.value);
-                    financierCodeValue = codeInput.value.trim();
-                    console.log(`[Form Submission] Trimmed ${normalizedFinancier}-code value:`, financierCodeValue);
-                    if (!financierCodeValue) {
-                        console.warn(`[Form Submission] Financier code for ${normalizedFinancier} is empty!`);
-                        window.showToast(`Please enter a valid ${normalizedFinancier} code.`, 'error');
-                        hideLoading();
-                        return;
-                    }
-                } else {
-                    console.error(`[Form Submission] Code input for ${normalizedFinancier} not found in section`);
-                    hideLoading();
-                    window.showToast(`Code input for ${normalizedFinancier} not found.`, 'error');
-                    return;
-                }
-            } else {
-                console.error(`[Form Submission] Code section for ${normalizedFinancier} not found in financierCodeSections`);
-                hideLoading();
-                window.showToast(`Configuration error: Code section for ${normalizedFinancier} not found.`, 'error');
-                return;
-            }
-
-            financierDetails = {
-                financier: normalizedFinancier,
-                financier_code: financierCodeValue || null
-            };
-            commonPayload.financier = normalizedFinancier;
-            commonPayload.financier_code = financierCodeValue || null;
-            console.log(`[Form Submission] Setting financier_code in payload to:`, commonPayload.financier_code);
-        } else {
-            commonPayload.financier = "none";
-            commonPayload.financier_code = null;
-            console.log('[Form Submission] No financier details provided, setting financier to "none"');
+    // Form Tab Switching
+    window.switchFormTab = (tab) => {
+        if (elements.financierTab && elements.pinelabsTab && elements.overallMappingTab &&
+            elements.financiersSection && elements.pinelabsSection &&
+            elements.overallMainMappingSection && elements.overallPinelabsSection) {
+            elements.financierTab.classList.toggle('active', tab === 'financier');
+            elements.pinelabsTab.classList.toggle('active', tab === 'pinelabs');
+            elements.overallMappingTab.classList.toggle('active', tab === 'overall');
+            elements.financiersSection.classList.toggle('hidden', tab !== 'financier');
+            elements.pinelabsSection.classList.toggle('hidden', tab !== 'pinelabs');
+            elements.overallMainMappingSection.classList.toggle('hidden', tab !== 'overall');
+            elements.overallPinelabsSection.classList.toggle('hidden', tab !== 'overall');
+            document.getElementById('active-tab').value = tab;
         }
+    };
 
-        // If only Pine Labs details are provided and we're not in edit mode, prevent submission
-        if (isPineLabsMapping && !isFinancierMapping && !window.isEditMode) {
-            console.log('[Form Submission] Pine Labs submission without financier details and not in edit mode');
-            hideLoading();
-            window.showToast('Please provide financier details or edit an existing mapping to add Pine Labs details.', 'error');
-            window.switchFormTab('financier');
+    // Table Population
+    window.populateMappingTable = (mappings, tableBody = elements.mappingTableBody, options = { editable: false, isAdminView: false }) => {
+        if (!tableBody) {
+            console.error('Mapping table body not found');
+            return;
+        }
+        tableBody.innerHTML = '';
+
+        if (!mappings || mappings.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="10" class="empty-state">No mappings found</td></tr>';
             return;
         }
 
-        try {
-            console.log('[Form Submission] Final payload being sent to Supabase:', JSON.stringify(commonPayload, null, 2));
-            let mappingRecord;
-
-            if (window.isEditMode && currentMappingId) {
-                submitText.textContent = 'Updating Mapping...';
-                console.log('[Form Submission] Updating existing mapping...');
-
-                const userRole = await window.checkUserRole();
-                if (userRole !== 'admin') {
-                    const { data: existingMapping, error: fetchErr } = await window.supabaseClient.from('finance_mappings').select('user_id').eq('id', currentMappingId).single();
-                    if (fetchErr || !existingMapping) throw fetchErr || new Error("Mapping not found or permission denied.");
-                    if (existingMapping.user_id !== user.id) throw new Error('Permission denied: You can only edit your own mappings.');
-                }
-
-                const { data, error } = await window.supabaseClient
-                    .from('finance_mappings')
-                    .update(commonPayload)
-                    .eq('id', currentMappingId)
-                    .select()
-                    .single();
-
-                if (error) {
-                    console.error('[Form Submission] Update error:', error);
-                    throw new Error(`Database update failed: ${error.message || error}`);
-                }
-                mappingRecord = data;
-                console.log('[Form Submission] Updated mapping record from DB:', JSON.stringify(mappingRecord, null, 2));
-                window.showToast('Mapping updated successfully!', 'success');
-
-            } else if (isFinancierMapping) {
-                submitText.textContent = 'Submitting...';
-                console.log('[Form Submission] Inserting new mapping...');
-
-                const { data, error } = await window.supabaseClient
-                    .from('finance_mappings')
-                    .insert([commonPayload])
-                    .select()
-                    .single();
-
-                if (error) {
-                    console.error('[Form Submission] Insert error:', error);
-                    throw new Error(`Database insert failed: ${error.message || error}`);
-                }
-                mappingRecord = data;
-                console.log('[Form Submission] Inserted mapping record from DB:', JSON.stringify(mappingRecord, null, 2));
-                window.showToast('Mapping request submitted successfully!', 'success');
-            } else {
-                console.log('[Form Submission] No new mapping to insert (likely Pine Labs-only submission in edit mode)');
-                // Fetch the existing mapping record if in edit mode
-                if (currentMappingId) {
-                    const { data, error } = await window.supabaseClient
-                        .from('finance_mappings')
-                        .select('*')
-                        .eq('id', currentMappingId)
-                        .single();
-                    if (error) throw error;
-                    mappingRecord = data;
-                } else {
-                    throw new Error('No mapping ID available for Pine Labs submission.');
-                }
-            }
-
-            if (mappingRecord && isPineLabsMapping) {
-                console.log('[Form Submission] Updating Pine Labs details for mapping ID:', mappingRecord.id);
-                console.log('[Form Submission] Pine Labs details to be updated:', JSON.stringify(pineLabsDetails, null, 2));
-                try {
-                    await window.updatePineLabsDetails(mappingRecord.id, pineLabsDetails);
-                    console.log('[Form Submission] Successfully called updatePineLabsDetails');
-                } catch (pineLabsError) {
-                    console.error('[Form Submission] Failed to update Pine Labs details:', pineLabsError);
-                    window.showToast(`Failed to save Pine Labs details: ${pineLabsError.message}`, 'error');
-                    throw pineLabsError; // Re-throw to ensure the form doesn't reset on failure
-                }
-            }
-
-            console.log('[Form Submission] Resetting form...');
-            resetForm();
-
-            console.log('[Form Submission] Reloading mappings...');
-            await window.loadMappings();
-            await window.loadPineLabsMappings();
-            await window.refreshOverallTables();
-
-        } catch (error) {
-            console.error('[Form Submission] Error details:', error);
-            handleOperationError(window.isEditMode ? 'Updating Mapping' : 'Submitting Mapping', error);
-        } finally {
-            hideLoading();
-        }
-    });
-
-    window.editMapping = async (id) => {
-        window.currentEditData = null;
-        try {
-            const { data: { user } = { user: null }, error: userError } = await window.supabaseClient.auth.getUser();
-            if (!user) throw new Error('Authentication required for editing.');
-
-            const userRole = await window.checkUserRole();
-            let query = window.supabaseClient.from('finance_mappings').select(`*, pinelabs_details!pinelabs_details_mapping_id_fkey(*)`).eq('id', id);
-
-            if (userRole !== 'admin') {
-                query = query.eq('user_id', user.id);
-            }
-            query = query.single();
-
-            const { data: mapping, error } = await query;
-            if (error) throw error;
-            if (!mapping) throw new Error('Mapping not found or you do not have permission.');
-
-            console.log('[Edit Mapping] Loaded mapping for edit:', mapping);
-
-            window.currentEditData = mapping;
-            window.isEditMode = true;
-            cancelEditBtn.classList.remove('hidden');
-            submitText.textContent = 'Update Mapping';
-            formSection.style.display = 'block';
-            window.scrollTo({ top: formSection.offsetTop, behavior: 'smooth' });
-
-            mappingIdInput.value = mapping.id;
-            storeNameSelect.value = mapping.store_name || '';
-            brandSelect.value = mapping.brand || '';
-            stateInput.value = mapping.state || '';
-            asmNameInput.value = mapping.asm || '';
-            mailIdInput.value = mapping.mail_id || '';
-            requestedByInput.value = mapping.requested_by || '';
-
-            if (mapping.brand === 'Apple' && mapping.brand_code) {
-                appleCodeSection.classList.remove('hidden');
-                appleCodeInput.value = mapping.brand_code;
-                appleCodeInput.setAttribute('required', 'true');
-                console.log('[Edit Mapping] Set Apple code to:', mapping.brand_code);
-            } else {
-                appleCodeSection.classList.add('hidden');
-                appleCodeInput.value = '';
-                appleCodeInput.removeAttribute('required');
-            }
-
-            if (mapping.financier && mapping.financier !== '' && mapping.financier !== 'none') {
-                window.switchFormTab('financier');
-                financierSelect.value = mapping.financier || '';
-                console.log('[Edit Mapping] Setting financier dropdown to:', mapping.financier);
-
-                updateBrandAndFinancierDisplay();
-
-                const selectedFinancierKey = mapping.financier;
-                const codeSection = financierCodeSections[selectedFinancierKey];
-                if (codeSection) {
-                    const codeInput = codeSection.querySelector('input[id$="-code"]');
-                    if (codeInput) {
-                        const codeValue = mapping.financier_code || '';
-                        codeInput.value = codeValue;
-                        codeInput.setAttribute('required', 'true');
-                        console.log(`[Edit Mapping] Set ${selectedFinancierKey}-code to:`, codeValue);
-                    }
-                }
-                window.createEmptyPinelabsEntry();
-            } else if (mapping.pinelabs_details && mapping.pinelabs_details.length > 0) {
-                window.switchFormTab('pinelabs');
-                pinelabsEntriesContainer.innerHTML = '';
-                mapping.pinelabs_details.sort((a, b) => a.id - b.id);
-
-                mapping.pinelabs_details.forEach(pl => {
-                    pinelabsEntriesContainer.insertAdjacentHTML('beforeend', window.createPinelabsEntryHtml(
-                        pl.pos_id || '', pl.tid || '', pl.serial_no || '', pl.store_id || '', true, pl.id
-                    ));
-                });
-                window.checkAndAdjustRemoveButtons();
-            } else {
-                window.switchFormTab('financier');
-                financierSelect.value = '';
-                window.createEmptyPinelabsEntry();
-            }
-
-            updateBrandAndFinancierDisplay();
-            mappingForm.reportValidity();
-
-        } catch (error) {
-            handleOperationError('Loading mapping for edit', error);
-            resetForm();
-            formSection.style.display = 'none';
-        }
-    };
-
-    if (cancelEditBtn) {
-        cancelEditBtn.addEventListener('click', () => {
-            resetForm();
-            formSection.style.display = 'none';
+        mappings.forEach(mapping => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td data-label="Store Name">${mapping.store_name || ''}</td>
+                <td data-label="City">${mapping.city || ''}</td>
+                <td data-label="Mail ID">${mapping.mail_id || ''}</td>
+                <td data-label="Brand">${mapping.brand || ''}</td>
+                <td data-label="Brand Code">${mapping.brand_code || ''}</td>
+                <td data-label="Financier">${mapping.financier || ''}</td>
+                <td data-label="Financier Code">${mapping.financier_code || ''}</td>
+                <td data-label="Requested By">${mapping.requested_by || ''}</td>
+                <td data-label="Requested Date">${mapping.requested_date ? new Date(mapping.requested_date).toLocaleDateString() : '-'}</td>
+                <td data-label="Actions" class="table-actions-column">
+                    ${options.editable ? `
+                        <button class="btn-icon-only btn-edit-icon" onclick="window.editMapping(${mapping.id})" aria-label="Edit mapping">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                        </button>
+                        <button class="btn-icon-only btn-delete-icon" onclick="${options.isAdminView ? window.deleteOverallMainMapping(${mapping.id}) : window.deleteMapping(${mapping.id})}" aria-label="Delete mapping">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                        </button>
+                    ` : '-'}
+                </td>
+            `;
+            tableBody.appendChild(row);
         });
-    }
 
-    let currentMappingsData = [];
-    let currentPinelabsData = [];
-
-    window.loadMappings = async () => {
-        mappingTableBody.innerHTML = '<tr><td colspan="11" class="loading text-center">Loading your mappings...</td></tr>';
-
-        try {
-            const { data: { user } = { user: null }, error: userError } = await window.supabaseClient.auth.getUser();
-            if (userError || !user) {
-                console.error('User authentication error:', userError);
-                mappingTableBody.innerHTML = `<tr><td colspan="11" class="empty-state">Please log in to view your mappings.</td></tr>`;
-                return;
-            }
-
-            const { data: mappings, error: mappingsError } = await window.supabaseClient
-                .from('finance_mappings')
-                .select(`
-                    id,
-                    store_name,
-                    asm,
-                    mail_id,
-                    brand,
-                    brand_code,
-                    financier,
-                    financier_code,
-                    state,
-                    requested_by,
-                    requested_date,
-                    user_id
-                `)
-                .eq('user_id', user.id)
-                .order('id', { ascending: false });
-
-            if (mappingsError) {
-                console.error('Error fetching finance mappings:', mappingsError);
-                throw mappingsError;
-            }
-
-            if (!mappings || mappings.length === 0) {
-                console.warn('No finance mappings found for user.');
-                mappingTableBody.innerHTML = `<tr><td colspan="11" class="empty-state">No matching mapping requests found.</td></tr>`;
-            }
-
-            currentMappingsData = mappings || [];
-            console.log('Fetched mappings:', JSON.stringify(currentMappingsData, null, 2));
-            populateMappingTable(currentMappingsData);
-        } catch (error) {
-            handleOperationError('Loading user mappings', error);
-            mappingTableBody.innerHTML = `<tr><td colspan="11" class="empty-state">Error loading your data.</td></tr>`;
-        } finally {
-            applyYourMappingsFilters();
-        }
-    };
-
-    window.loadPineLabsMappings = async () => {
-        pinelabsTableBody.innerHTML = '<tr><td colspan="9" class="loading text-center">Loading your Pine Labs details...</td></tr>';
-        try {
-            const { data: { user } = { user: null }, error: userError } = await window.supabaseClient.auth.getUser();
-            if (userError || !user) {
-                console.error('User authentication error:', userError);
-                pinelabsTableBody.innerHTML = `<tr><td colspan="9" class="empty-state">Please log in to view your Pine Labs details.</td></tr>`;
-                return;
-            }
-            const { data: mappings, error: mappingsError } = await window.supabaseClient
-                .from('finance_mappings')
-                .select(`
-                    id,
-                    store_name,
-                    asm,
-                    mail_id,
-                    brand,
-                    brand_code,
-                    financier,
-                    financier_code,
-                    state,
-                    requested_by,
-                    requested_date,
-                    user_id,
-                    pinelabs_details!pinelabs_details_mapping_id_fkey(*)
-                `)
-                .eq('user_id', user.id)
-                .order('id', { ascending: false });
-
-            if (mappingsError) {
-                console.error('Error fetching finance mappings:', mappingsError);
-                throw mappingsError;
-            }
-
-            if (!mappings || mappings.length === 0) {
-                console.warn('No finance mappings found for user.');
-                pinelabsTableBody.innerHTML = `<tr><td colspan="9" class="empty-state">No matching mapping requests found.</td></tr>`;
-            }
-            currentPineLabsMappingsData = mappings || [];
-            currentPinelabsData = [];
-            currentPineLabsMappingsData.forEach(mapping => {
-                if (mapping.pinelabs_details && mapping.pinelabs_details.length > 0) {
-                    mapping.pinelabs_details.forEach(pl => {
-                        currentPinelabsData.push({
-                            ...pl,
-                            finance_mappings: {
-                                id: mapping.id,
-                                store_name: mapping.store_name,
-                                brand: mapping.brand
-                            }
-                        });
-                    });
-                }
+        // Populate brand filter dropdown with all unique brands from the full dataset
+        const brandFilter = options.isAdminView ? elements.overallMainMappingsBrandFilter : elements.yourMappingsBrandFilter;
+        if (brandFilter) {
+            const allBrands = options.isAdminView ? [...new Set(allMappingsData.map(m => m.brand))].sort() : [...new Set(mappings.map(m => m.brand))].sort();
+            const currentSelectedValue = brandFilter.value;
+            brandFilter.innerHTML = '<option value="">All Brands</option>';
+            allBrands.forEach(brand => {
+                const option = document.createElement('option');
+                option.value = brand;
+                option.textContent = brand || 'Unknown';
+                brandFilter.appendChild(option);
             });
-
-            window.populatePinelabsTable(pinelabsTableBody, currentPinelabsData, { editable: true });
-        } catch (error) {
-            handleOperationError('Loading user mappings', error);
-            pinelabsTableBody.innerHTML = `<tr><td colspan="9" class="empty-state">Error loading your data.</td></tr>`;
-        } finally {
-            applyYourPinelabsFilters();
+            // Restore the previously selected value if it still exists
+            if (currentSelectedValue && allBrands.includes(currentSelectedValue)) {
+                brandFilter.value = currentSelectedValue;
+            } else {
+                brandFilter.value = '';
+            }
+            // Only reapply filter if not already in a filter application context
+            if (!window.isApplyingFilter) {
+                if (options.isAdminView) {
+                    applyOverallMainMappingsFilter();
+                } else {
+                    applyYourMappingsFilter();
+                }
+            }
         }
     };
 
-    const populateMappingTable = (mappingsToDisplay) => {
-        mappingTableBody.innerHTML = '';
-        const colSpan = mappingTableBody.parentElement?.tHead?.rows[0]?.cells.length || 11;
+    window.populatePinelabsTable = (tableBodyElement, pinelabsData, options = { editable: false, isAdminView: false }) => {
+        if (!tableBodyElement) {
+            console.error("Target table body for Pine Labs not found.");
+            return;
+        }
 
-        if (mappingsToDisplay && mappingsToDisplay.length > 0) {
-            mappingsToDisplay.forEach(row => {
-                const tr = mappingTableBody.insertRow();
-                let financierDisplay = row.financier && row.financier !== 'none' 
-                    ? row.financier.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) 
-                    : '-';
-                let financierCodeDisplay = row.financier_code || '-';
+        const table = tableBodyElement.closest('table');
+        const colspan = table?.tHead?.rows[0]?.cells.length || 9;
+        tableBodyElement.innerHTML = '';
 
-                console.log(`Row ${row.id} - Raw financier: ${row.financier}, Raw financier_code:`, row.financier_code);
+        allPineLabsData = Array.isArray(pinelabsData) ? pinelabsData : [];
 
-                const requestedDate = row.requested_date ? new Date(row.requested_date) : null;
-                const formattedDate = requestedDate ? requestedDate.toLocaleDateString() : '-';
+        let dataToDisplay = allPineLabsData;
+        const searchInput = options.isAdminView ? elements.overallPinelabsSearch : elements.yourPinelabsSearch;
+        const brandFilter = options.isAdminView ? elements.overallPinelabsBrandFilter : elements.yourPinelabsBrandFilter;
+        const searchTerm = searchInput?.value?.toLowerCase().trim() || '';
+        const brandValue = brandFilter?.value || '';
 
-                tr.innerHTML = `<td class="table-id-column">${row.id}</td><td>${row.store_name ?? '-'}</td><td>${row.asm ?? '-'}</td><td>${row.mail_id ?? '-'}</td><td data-brand="${row.brand ?? ''}">${row.brand ?? '-'}</td><td>${row.brand === 'Apple' ? (row.brand_code ?? '-') : '-'}</td><td>${financierDisplay}</td><td>${financierCodeDisplay}</td><td class="table-date-column">${formattedDate}</td><td>${row.requested_by ?? '-'}</td><td class="table-actions-column">
-                    <div class="action-buttons">
-                    <button class="btn btn-icon-only btn-edit-icon" onclick="window.editMapping(${row.id})" title="Edit"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
-                    <button class="btn btn-icon-only btn-delete-icon" onclick="window.deleteMapping(${row.id})" title="Delete"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
-                    </div>
-                    </td>`;
+        if (searchTerm || brandValue) {
+            dataToDisplay = allPineLabsData.filter(pl => {
+                const searchString = [
+                    String(pl.finance_mappings?.store_name || ''),
+                    String(pl.finance_mappings?.brand || ''),
+                    String(pl.pos_id || ''),
+                    String(pl.tid || ''),
+                    String(pl.serial_no || ''),
+                    String(pl.store_id || '')
+                ].join(' ').toLowerCase();
+                const matchesSearch = searchTerm ? searchString.includes(searchTerm) : true;
+                const matchesBrand = brandValue ? pl.finance_mappings?.brand === brandValue : true;
+                return matchesSearch && matchesBrand;
+            });
+        }
+
+        if (dataToDisplay.length > 0) {
+            dataToDisplay.forEach(pl => {
+                const tr = document.createElement('tr');
+                const mainMappingId = pl.finance_mappings?.id || pl.mapping_id;
+                let actionsCellHtml = <td class="table-actions-column">-</td>;
+
+                if (options.editable) {
+                    actionsCellHtml = <td class="table-actions-column"><div class="action-buttons">;
+                    if (mainMappingId) {
+                        actionsCellHtml += <button class="btn btn-icon-only btn-edit-icon" onclick="window.editMapping(${mainMappingId})" title="Edit Main Mapping"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>;
+                    }
+                    actionsCellHtml += <button class="btn btn-icon-only btn-delete-icon" onclick="window.deleteSinglePinelabsDetail(${pl.id})" title="Delete Pine Labs Entry"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></div></td>;
+                }
+
+                const storeName = pl.finance_mappings?.store_name || '-';
+                const brand = pl.finance_mappings?.brand || '-';
+                const mappingIdDisplay = pl.mapping_id || 'N/A';
+                tr.innerHTML = `
+                    <td>${storeName}</td>
+                    <td data-brand="${brand}">${brand}</td>
+                    <td>${pl.pos_id || '-'}</td>
+                    <td>${pl.tid || '-'}</td>
+                    <td>${pl.serial_no || '-'}</td>
+                    <td>${pl.store_id || '-'}</td>
+                    ${actionsCellHtml}
+                `;
+                tableBodyElement.appendChild(tr);
             });
         } else {
-            const noDataFilterRow = document.getElementById('mapping-table-body-no-data-filter');
-            if (noDataFilterRow) noDataFilterRow.remove();
-            mappingTableBody.innerHTML = `<tr><td colspan="${colSpan}" class="empty-state">No matching mapping requests found.</td></tr>`;
+            tableBodyElement.innerHTML = <tr><td colspan="${colspan}" class="empty-state">${searchTerm || brandValue ? 'No results found for your search.' : 'No Pine Labs details found.'}</td></tr>;
+        }
+
+        // Populate brand filter dropdown with all unique brands
+        if (brandFilter) {
+            const allBrands = [...new Set(allPineLabsData.map(pl => pl.finance_mappings?.brand).filter(b => b))].sort();
+            const currentSelectedValue = brandFilter.value;
+            brandFilter.innerHTML = '<option value="">All Brands</option>';
+            allBrands.forEach(brand => {
+                const option = document.createElement('option');
+                option.value = brand;
+                option.textContent = brand || 'Unknown';
+                brandFilter.appendChild(option);
+            });
+            // Restore the previously selected value if it still exists
+            if (currentSelectedValue && allBrands.includes(currentSelectedValue)) {
+                brandFilter.value = currentSelectedValue;
+            } else {
+                brandFilter.value = '';
+            }
+        }
+    };
+
+    // Filters
+    window.filterPineLabsTable = (isAdminView = false) => {
+        const tableBodyElement = isAdminView ? elements.overallPinelabsTableBody : elements.pinelabsTableBody;
+        if (!tableBodyElement) {
+            console.error("Pinelabs table body not found for filtering.");
+            return;
+        }
+        window.populatePinelabsTable(tableBodyElement, allPineLabsData, { editable: true, isAdminView });
+    };
+
+    window.applyYourMappingsFilter = () => {
+        window.isApplyingFilter = true;
+        const searchTerm = elements.yourMappingsSearch?.value.toLowerCase() || '';
+        const brandFilter = elements.yourMappingsBrandFilter?.value || '';
+        const mappingsData = window.navigation?.appState?.currentMappingsData || [];
+
+        const filteredMappings = mappingsData.filter(mapping => {
+            const matchesSearch = (
+                mapping.store_name?.toLowerCase().includes(searchTerm) ||
+                mapping.city?.toLowerCase().includes(searchTerm) ||
+                mapping.mail_id?.toLowerCase().includes(searchTerm) ||
+                mapping.brand?.toLowerCase().includes(searchTerm) ||
+                mapping.financier?.toLowerCase().includes(searchTerm) ||
+                mapping.requested_by?.toLowerCase().includes(searchTerm)
+            );
+            const matchesBrand = brandFilter ? mapping.brand === brandFilter : true;
+            return matchesSearch && matchesBrand;
+        });
+
+        window.populateMappingTable(filteredMappings, elements.mappingTableBody, { editable: true, isAdminView: false });
+        window.isApplyingFilter = false;
+    };
+
+    window.applyOverallMainMappingsFilter = () => {
+        window.isApplyingFilter = true;
+        const searchTerm = elements.overallMainMappingsSearch?.value.toLowerCase() || '';
+        const brandFilter = elements.overallMainMappingsBrandFilter?.value || '';
+        const mappingsData = window.navigation?.appState?.currentOverallMainMappingsData || [];
+
+        const filteredMappings = mappingsData.filter(mapping => {
+            const matchesSearch = (
+                mapping.store_name?.toLowerCase().includes(searchTerm) ||
+                mapping.city?.toLowerCase().includes(searchTerm) ||
+                mapping.mail_id?.toLowerCase().includes(searchTerm) ||
+                mapping.brand?.toLowerCase().includes(searchTerm) ||
+                mapping.financier?.toLowerCase().includes(searchTerm) ||
+                mapping.requested_by?.toLowerCase().includes(searchTerm)
+            );
+            const matchesBrand = brandFilter ? mapping.brand === brandFilter : true;
+            return matchesSearch && matchesBrand;
+        });
+
+        window.populateMappingTable(filteredMappings, elements.overallMainMappingTableBody, { editable: true, isAdminView: true });
+        window.isApplyingFilter = false;
+    };
+
+    // Form Submission
+    window.handleFormSubmit = async (e) => {
+        e.preventDefault();
+        if (isSubmitting) return;
+
+        isSubmitting = true;
+        showLoading();
+
+        try {
+            const now = Date.now();
+            if (now - lastSubmitTime < DEBOUNCE_DELAY) {
+                showToast('Please wait before submitting again', 'error');
+                return;
+            }
+            lastSubmitTime = now;
+
+            const financier = elements.financier?.value || '';
+            let financeCode = '';
+
+            const codeSections = {
+                'Bajaj': elements.bajajCodeSection,
+                'Benow': elements.benowCodeSection,
+                'HDB': elements.hdbCodeSection,
+                'HDFC': elements.hdfcCodeSection,
+                'Home Credit': elements.homeCreditCodeSection,
+                'ICICI': elements.iciciCodeSection,
+                'IDFC': elements.idfcCodeSection,
+                'Kotak': elements.kotakCodeSection,
+                'TVS': elements.tvsCodeSection
+            };
+            if (financier && codeSections[financier]) {
+                const input = codeSections[financier].querySelector('input');
+                financeCode = input ? input.value || '' : '';
+            }
+
+            const { data: { user } } = await window.supabaseClient.auth.getUser();
+            const userId = user?.id || '';
+            if (!userId) throw new Error('User not authenticated');
+
+            const financierData = {
+                store_name: elements.storeName?.value || '',
+                city: elements.city?.value || '',
+                mail_id: elements.mailId?.value || '',
+                brand: elements.brand?.value || '',
+                brand_code: elements.appleCode?.value || '',
+                financier: financier,
+                financier_code: financeCode,
+                asm: elements.asm?.value || '',
+                requested_by: elements.requestedBy?.value || '',
+                requested_date: new Date().toISOString(),
+                user_id: userId
+            };
+
+            const pinelabsEntries = Array.from(elements.pinelabsEntries.children).map(entry => ({
+                id: entry.dataset.id || null,
+                pos_id: entry.querySelector('[name="pos_id"]')?.value || '',
+                tid: entry.querySelector('[name="tid"]')?.value || '',
+                serial_no: entry.querySelector('[name="serial_no"]')?.value || '',
+                store_id: entry.querySelector('[name="store_id"]')?.value || '',
+            })).filter(entry => entry.pos_id || entry.tid || entry.serial_no || entry.store_id);
+
+            if (!financierData.store_name || !financierData.brand || !financierData.financier || !financierData.city || !financierData.requested_by) {
+                throw new Error('Please fill in all required fields');
+            }
+
+            let mappingId;
+            if (!window.isEditMode) {
+                const isDuplicate = await checkForDuplicateMapping(financierData);
+                if (isDuplicate) {
+                    throw new Error('This mapping already exists');
+                }
+
+                const { data, error } = await window.supabaseClient
+                    .from('finance_mappings')
+                    .insert([financierData])
+                    .select('id');
+                if (error) throw error;
+                if (data && data.length > 0) {
+                    mappingId = data[0].id;
+                } else {
+                    throw new Error('Failed to retrieve inserted mapping ID');
+                }
+            } else {
+                const { data, error } = await window.supabaseClient
+                    .from('finance_mappings')
+                    .update(financierData)
+                    .eq('id', window.currentEditData.id)
+                    .select('id')
+                    .single();
+                if (error) throw error;
+                mappingId = data.id;
+            }
+
+            // Save Pine Labs details if any entries exist
+            if (pinelabsEntries.length > 0) {
+                try {
+                    await window.updatePineLabsDetails(mappingId, pinelabsEntries);
+                } catch (pineLabsError) {
+                    console.error('Failed to save Pine Labs details:', pineLabsError);
+                    showToast('Warning: Finance data saved, but Pine Labs details failed to save. Please try again.', 'warning');
+                    throw pineLabsError;
+                }
+            }
+
+            // Store the current mailId before reset
+            const currentMailId = elements.mailId.value;
+            elements.mappingForm.reset();
+            elements.pinelabsEntries.innerHTML = '';
+            window.createEmptyPinelabsEntry();
+            updateBrandAndFinancierDisplay();
+            window.switchFormTab('financier');
+            window.isEditMode = false;
+            elements.cancelEditBtn.classList.add('hidden');
+            elements.submitText.textContent = 'Submit Mapping Request';
+
+            // Repopulate mailId after reset
+            if (elements.mailId) elements.mailId.value = currentMailId || userEmail;
+
+            const feedbackElement = document.createElement('div');
+            feedbackElement.textContent = Mapping ${window.isEditMode ? 'updated' : 'created'} successfully;
+            feedbackElement.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #28a745; color: white; padding: 15px; border-radius: 5px; z-index: 10000; font-size: 16px; text-align: center; width: 300px;';
+            document.body.appendChild(feedbackElement);
+            setTimeout(() => feedbackElement.remove(), 3000);
+            await refreshTables();
+        } catch (error) {
+            handleOperationError('Form Submission', error);
+        } finally {
+            isSubmitting = false;
+            hideLoading();
+        }
+    };
+
+    // Update Pine Labs Details
+    window.updatePineLabsDetails = async (mappingId, pineLabsDetailsArray) => {
+        if (!mappingId) {
+            showToast('Cannot update Pine Labs: Mapping ID missing.', 'error');
+            throw new Error('Mapping ID is required.');
+        }
+
+        try {
+            const { data: { user } = { user: null } } = await window.supabaseClient.auth.getUser();
+            if (!user) throw new Error('User not authenticated.');
+
+            const userRole = await window.checkUserRole();
+            if (userRole !== 'admin') {
+                const { data: mapping, error: mapErr } = await window.supabaseClient
+                    .from('finance_mappings')
+                    .select('user_id')
+                    .eq('id', mappingId)
+                    .single();
+                if (mapErr || !mapping) throw new Error('Associated mapping not found or permission denied.');
+                if (mapping.user_id !== user.id) throw new Error('Permission denied: You can only update your own mappings.');
+            }
+
+            const { data: existingDetailsDb, error: fetchExistingErr } = await window.supabaseClient
+                .from('pinelabs_details')
+                .select('id, pos_id, tid, serial_no, store_id, mapping_id')
+                .eq('mapping_id', mappingId);
+            if (fetchExistingErr) throw fetchExistingErr;
+
+            const existingDbMap = new Map(existingDetailsDb?.map(d => [d.id, d]) || []);
+            const detailsToInsert = [];
+            const detailsToUpdate = [];
+            const originalAllPineLabsData = [...allPineLabsData];
+
+            pineLabsDetailsArray.forEach(plFromForm => {
+                const isNewEntry = plFromForm.id === null || !existingDbMap.has(plFromForm.id);
+                if (isNewEntry) {
+                    const isMeaningfulEntry = plFromForm.pos_id || plFromForm.tid || plFromForm.serial_no || plFromForm.store_id;
+                    if (isMeaningfulEntry) {
+                        detailsToInsert.push({
+                            pos_id: plFromForm.pos_id,
+                            tid: plFromForm.tid,
+                            serial_no: plFromForm.serial_no,
+                            store_id: plFromForm.store_id,
+                            mapping_id: mappingId,
+                            user_id: user.id
+                        });
+                    }
+                } else if (plFromForm.id !== null && existingDbMap.has(plFromForm.id)) {
+                    const existingDetail = existingDbMap.get(plFromForm.id);
+                    const hasChanged =
+                        existingDetail.pos_id !== plFromForm.pos_id ||
+                        existingDetail.tid !== plFromForm.tid ||
+                        existingDetail.serial_no !== plFromForm.serial_no ||
+                        existingDetail.store_id !== plFromForm.store_id;
+                    if (hasChanged) {
+                        detailsToUpdate.push({
+                            id: plFromForm.id,
+                            pos_id: plFromForm.pos_id,
+                            tid: plFromForm.tid,
+                            serial_no: plFromForm.serial_no,
+                            store_id: plFromForm.store_id,
+                            mapping_id: mappingId
+                        });
+                    }
+                }
+            });
+
+            const idsInFormForUpdateAndInsert = new Set(
+                pineLabsDetailsArray
+                    .filter(d => d.id !== null && existingDbMap.has(d.id))
+                    .map(d => d.id)
+            );
+            const idsToDelete = Array.from(existingDbMap.keys()).filter(dbId => !idsInFormForUpdateAndInsert.has(dbId));
+
+            if (idsToDelete.length > 0) {
+                const { error: delErr } = await window.supabaseClient
+                    .from('pinelabs_details')
+                    .delete()
+                    .in('id', idsToDelete);
+                if (delErr) throw new Error(Failed to delete Pine Labs entries: ${delErr.message});
+                allPineLabsData = allPineLabsData.filter(pl => !idsToDelete.includes(pl.id));
+            }
+
+            if (detailsToInsert.length > 0) {
+                console.log('Inserting Pine Labs details:', detailsToInsert);
+                const { data: insertedData, error: insErr } = await window.supabaseClient
+                    .from('pinelabs_details')
+                    .insert(detailsToInsert)
+                    .select('id, pos_id, tid, serial_no, store_id, mapping_id');
+                if (insErr) {
+                    console.error('Insert error:', insErr);
+                    allPineLabsData = originalAllPineLabsData;
+                    throw new Error(Failed to insert Pine Labs entries: ${insErr.message});
+                }
+                if (insertedData && insertedData.length > 0) {
+                    const insertedWithMappingInfo = insertedData.map(item => ({
+                        ...item,
+                        finance_mappings: null
+                    }));
+                    allPineLabsData = allPineLabsData.concat(insertedWithMappingInfo);
+                }
+            }
+
+            for (const detail of detailsToUpdate) {
+                const updateObject = {
+                    pos_id: detail.pos_id,
+                    tid: detail.tid,
+                    serial_no: detail.serial_no,
+                    store_id: detail.store_id,
+                    mapping_id: detail.mapping_id
+                };
+                const { error: updErr } = await window.supabaseClient
+                    .from('pinelabs_details')
+                    .update(updateObject)
+                    .eq('id', detail.id)
+                    .eq('mapping_id', detail.mapping_id);
+                if (updErr) {
+                    console.error('Update error for ID', detail.id, ':', updErr);
+                    allPineLabsData = originalAllPineLabsData;
+                    throw new Error(Failed to update Pine Labs entry ${detail.id}: ${updErr.message});
+                }
+                const index = allPineLabsData.findIndex(pl => pl.id === detail.id);
+                if (index > -1) {
+                    allPineLabsData[index] = { ...allPineLabsData[index], ...updateObject };
+                }
+            }
+
+            window.filterPineLabsTable();
+            await refreshTables();
+        } catch (error) {
+            console.error('Update Pine Labs Details error:', error);
+            handleOperationError('Update Pine Labs Details', error);
+            throw error;
+        }
+    };
+
+    // Refresh Tables
+    const hasEditPermission = async () => {
+        try {
+            const userRole = await window.checkUserRole();
+            return userRole === 'admin' || true; // Allow non-admin users to edit their own mappings
+        } catch (error) {
+            console.error('Error checking edit permission:', error);
+            return false;
+        }
+    };
+    
+    const refreshTables = async () => {
+        try {
+            const { data: { user } } = await window.supabaseClient.auth.getUser();
+            const userId = user?.id || '';
+            if (!userId) throw new Error('User not authenticated');
+    
+            const userRole = await window.checkUserRole();
+            let mappings, overallMappings, pinelabsData;
+    
+            // Fetch user-specific mappings
+            const { data: userMappings, error: mappingsError } = await window.supabaseClient
+                .from('finance_mappings')
+                .select('*')
+                .eq('user_id', userId);
+            if (mappingsError) throw mappingsError;
+            window.navigation.appState.currentMappingsData = userMappings || [];
+            window.populateMappingTable(userMappings, elements.mappingTableBody, { editable: await hasEditPermission(), isAdminView: false });
+    
+            // Skip overall mappings for non-admins
+            if (userRole === 'admin') {
+                const { data: allMappings, error: allMappingsError } = await window.supabaseClient
+                    .from('finance_mappings')
+                    .select('*');
+                if (allMappingsError) throw allMappingsError;
+                allMappingsData = allMappings;
+                window.navigation.appState.currentOverallMainMappingsData = allMappings || [];
+                window.populateMappingTable(allMappings, elements.overallMainMappingTableBody, { editable: true, isAdminView: true });
+            } else {
+                if (elements.overallMainMappingTableBody) {
+                    elements.overallMainMappingTableBody.innerHTML = '';
+                    logDebug('Skipped overallMainMappingTableBody population for non-admin');
+                }
+            }
+    
+            const mappingIds = userMappings.map(m => m.id);
+            let pinelabsError;
+            try {
+                ({ data: pinelabsData, error: pinelabsError } = await window.supabaseClient
+                    .from('pinelabs_details')
+                    .select(`
+                        id,
+                        pos_id,
+                        tid,
+                        serial_no,
+                        store_id,
+                        mapping_id,
+                        finance_mappings!pinelabs_details_mapping_id_fkey (brand, id, store_name)
+                    `)
+                    .in('mapping_id', mappingIds));
+            } catch (embedError) {
+                console.warn('Embedding failed, falling back to basic query:', embedError.message);
+                ({ data: pinelabsData, error: pinelabsError } = await window.supabaseClient
+                    .from('pinelabs_details')
+                    .select('id, pos_id, tid, serial_no, store_id, mapping_id')
+                    .in('mapping_id', mappingIds));
+            }
+            if (pinelabsError) throw pinelabsError;
+    
+            const mappingIdMap = new Map(userMappings.map(m => [m.id, m]));
+            allPineLabsData = pinelabsData.map(pl => ({
+                ...pl,
+                finance_mappings: mappingIdMap.get(pl.mapping_id) || pl.finance_mappings || { brand: '', id: null, store_name: '' }
+            }));
+    
+            window.populatePinelabsTable(elements.pinelabsTableBody, allPineLabsData, { editable: await hasEditPermission(), isAdminView: false });
+            if (userRole === 'admin') {
+                window.populatePinelabsTable(elements.overallPinelabsTableBody, allPineLabsData, { editable: true, isAdminView: true });
+            } else {
+                if (elements.overallPinelabsTableBody) {
+                    elements.overallPinelabsTableBody.innerHTML = '';
+                    logDebug('Skipped overallPinelabsTableBody population for non-admin');
+                }
+            }
+        } catch (error) {
+            console.error('Refresh Tables failed:', error.message);
+            handleOperationError('Refresh Tables', error);
+            throw error;
+        }
+    };
+
+    // Edit and Delete
+    window.editMapping = async (id) => {
+        try {
+            const { data, error } = await window.supabaseClient
+                .from('finance_mappings')
+                .select('*')
+                .eq('id', id)
+                .single();
+
+            if (error) throw error;
+
+            window.isEditMode = true;
+            window.currentEditData = data;
+            elements.submitText.textContent = 'Update Mapping';
+            elements.cancelEditBtn.classList.remove('hidden');
+
+            elements.storeName.value = data.store_name || '';
+            elements.brand.value = data.brand || '';
+            elements.appleCode.value = data.brand_code || '';
+            elements.financier.value = data.financier || '';
+            elements.city.value = data.city || '';
+            elements.asm.value = data.asm || '';
+            elements.requestedBy.value = data.requested_by || '';
+            updateBrandAndFinancierDisplay(true, true);
+
+            const codeSections = {
+                'Bajaj': elements.bajajCodeSection,
+                'Benow': elements.benowCodeSection,
+                'HDB': elements.hdbCodeSection,
+                'HDFC': elements.hdfcCodeSection,
+                'Home Credit': elements.homeCreditCodeSection,
+                'ICICI': elements.iciciCodeSection,
+                'IDFC': elements.idfcCodeSection,
+                'Kotak': elements.kotakCodeSection,
+                'TVS': elements.tvsCodeSection
+            };
+            if (data.financier && codeSections[data.financier]) {
+                const input = codeSections[data.financier].querySelector('input');
+                if (input) input.value = data.financier_code || '';
+            }
+
+            const { data: pinelabsData, error: pinelabsError } = await window.supabaseClient
+                .from('pinelabs_details')
+                .select('*')
+                .eq('mapping_id', id);
+
+            if (pinelabsError) throw pinelabsError;
+
+            elements.pinelabsEntries.innerHTML = '';
+            if (pinelabsData.length > 0) {
+                pinelabsData.forEach(entry => {
+                    const entryHtml = window.createPinelabsEntryHtml(
+                        entry.pos_id,
+                        entry.tid,
+                        entry.serial_no,
+                        entry.store_id,
+                        true,
+                        entry.id
+                    );
+                    elements.pinelabsEntries.insertAdjacentHTML('beforeend', entryHtml);
+                });
+                window.switchFormTab('pinelabs');
+            } else {
+                window.createEmptyPinelabsEntry();
+                window.switchFormTab('financier');
+            }
+
+            window.checkAndAdjustRemoveButtons();
+        } catch (error) {
+            handleOperationError('Edit Mapping', error);
+        }
+    };
+
+    window.editMappingOverall = async (id) => {
+        await window.editMapping(id);
+    };
+
+    window.editPinelabs = async (id) => {
+        try {
+            const { data, error } = await window.supabaseClient
+                .from('pinelabs_details')
+                .select('*, finance_mappings(id, store_name, brand)')
+                .eq('id', id)
+                .single();
+
+            if (error) throw error;
+
+            window.isEditMode = true;
+            window.currentEditData = data;
+            elements.submitText.textContent = 'Update Pine Labs Entry';
+            elements.cancelEditBtn.classList.remove('hidden');
+
+            elements.storeName.value = data.finance_mappings?.store_name || '';
+            elements.brand.value = data.finance_mappings?.brand || '';
+            updateBrandAndFinancierDisplay(true, true);
+
+            elements.pinelabsEntries.innerHTML = '';
+            const entryHtml = window.createPinelabsEntryHtml(
+                data.pos_id,
+                data.tid,
+                data.serial_no,
+                data.store_id,
+                true,
+                data.id
+            );
+            elements.pinelabsEntries.insertAdjacentHTML('beforeend', entryHtml);
+            window.switchFormTab('pinelabs');
+            window.checkAndAdjustRemoveButtons();
+        } catch (error) {
+            handleOperationError('Edit Pine Labs Entry', error);
         }
     };
 
     window.deleteMapping = async (id) => {
-        if (!confirm('Are you sure you want to delete this mapping? All associated Pine Labs details will also be deleted.')) {
-            return;
-        }
-
+        if (!confirm('Delete this mapping and its Pine Labs entries?')) return;
         try {
-            showLoading();
-
-            const { data: { user } = { user: null }, error: userError } = await window.supabaseClient.auth.getUser();
-            if (!user) throw new Error('Authentication required.');
-
-            const userRole = await window.checkUserRole();
-            if (userRole !== 'admin') {
-                const { data: existingMapping, error: fetchErr } = await window.supabaseClient.from('finance_mappings').select('user_id').eq('id', id).single();
-                if (fetchErr || !existingMapping) throw fetchErr || new Error("Mapping not found or permission denied.");
-                if (existingMapping.user_id !== user.id) throw new Error('Permission denied: You can only delete your own mappings.');
-            }
-
-            const { error: pinelabsDeleteError } = await window.supabaseClient
+            const { error: pinelabsError } = await window.supabaseClient
                 .from('pinelabs_details')
                 .delete()
                 .eq('mapping_id', id);
 
-            if (pinelabsDeleteError) {
-                console.warn('Could not delete associated Pine Labs details (possibly due to RLS/permissions, or they didn\'t exist):', pinelabsDeleteError.message);
-            }
+            if (pinelabsError) throw pinelabsError;
 
-            const { error: mappingDeleteError } = await window.supabaseClient
+            const { error: mappingError } = await window.supabaseClient
                 .from('finance_mappings')
                 .delete()
                 .eq('id', id);
 
-            if (mappingDeleteError) throw mappingDeleteError;
+            if (mappingError) throw mappingError;
 
-            window.showToast('Mapping and associated details deleted successfully!', 'success');
-            resetForm();
-            await window.loadMappings();
-            await window.refreshOverallTables();
-
+            allPineLabsData = allPineLabsData.filter(pl => pl.mapping_id !== id);
+            await refreshTables();
+            showToast('Mapping deleted successfully', 'success');
         } catch (error) {
-            handleOperationError('Deleting Mapping', error);
-        } finally {
-            hideLoading();
+            handleOperationError('Delete Mapping', error);
         }
     };
 
-    const yourMappingsSearchInput = document.getElementById('yourMappingsSearch');
-    const yourMappingsBrandFilter = document.getElementById('yourMappingsBrandFilter');
-
-    const applyYourMappingsFilters = () => {
-        const searchTerm = yourMappingsSearchInput.value.toLowerCase();
-        const brandFilter = yourMappingsBrandFilter.value;
-
-        const filteredData = currentMappingsData.filter(row => {
-            let matchesSearch = searchTerm === '' ||
-                (row.store_name?.toLowerCase().includes(searchTerm)) ||
-                (row.asm?.toLowerCase().includes(searchTerm)) ||
-                (row.mail_id?.toLowerCase().includes(searchTerm)) ||
-                (row.brand?.toLowerCase().includes(searchTerm)) ||
-                (row.financier?.toLowerCase().includes(searchTerm)) ||
-                (row.requested_by?.toLowerCase().includes(searchTerm)) ||
-                (row.id?.toString().includes(searchTerm));
-
-            const matchesBrand = brandFilter === '' || row.brand === brandFilter;
-            return matchesSearch && matchesBrand;
-        });
-
-        populateMappingTable(filteredData);
-    };
-
-    if (yourMappingsSearchInput) yourMappingsSearchInput.addEventListener('input', applyYourMappingsFilters);
-    if (yourMappingsBrandFilter) yourMappingsBrandFilter.addEventListener('change', applyYourMappingsFilters);
-
-    const yourPinelabsSearchInput = document.getElementById('yourPinelabsSearch');
-    const yourPinelabsBrandFilter = document.getElementById('yourPinelabsBrandFilter');
-
-    const applyYourPinelabsFilters = () => {
-        const searchTerm = yourPinelabsSearchInput.value.toLowerCase();
-        const brandFilter = yourPinelabsBrandFilter.value;
-        let filteredData = currentPinelabsData.filter(pl => {
-            let matchesSearch = searchTerm === '' ||
-                (pl.pos_id?.toLowerCase().includes(searchTerm)) ||
-                (pl.tid?.toLowerCase().includes(searchTerm)) ||
-                (pl.serial_no?.toLowerCase().includes(searchTerm)) ||
-                (pl.store_id?.toLowerCase().includes(searchTerm)) ||
-                (pl.mapping_id?.toString().includes(searchTerm)) ||
-                (pl.id?.toString().includes(searchTerm)) ||
-                (pl.finance_mappings?.store_name?.toLowerCase().includes(searchTerm));
-            const matchesBrand = brandFilter === '' || pl.finance_mappings?.brand === brandFilter;
-            return matchesSearch && matchesBrand;
-        });
-        window.populatePinelabsTable(pinelabsTableBody, filteredData, { editable: true });
-
-        const actualDisplayedRows = pinelabsTableBody.querySelectorAll('tr:not([id^="pinelabs-table-body-"])').length;
-        const colSpan = pinelabsTableBody.parentElement?.tHead?.rows[0]?.cells.length || 9;
-        const existingNoDataFilter = document.getElementById('pinelabs-table-body-no-data-filter');
-
-        if (actualDisplayedRows === 0) {
-            if (!existingNoDataFilter) {
-                const tr = document.createElement('tr');
-                tr.id = 'pinelabs-table-body-no-data-filter';
-                tr.innerHTML = `<td colspan="${colSpan}" class="empty-state">No matching Pine Labs details found.</td>`;
-                pinelabsTableBody.appendChild(tr);
-            } else {
-                existingNoDataFilter.style.display = '';
-            }
+    window.deleteOverallMainMapping = async (id) => {
+        if (window.navigation?.deleteOverallMainMapping) {
+            await window.navigation.deleteOverallMainMapping(id, elements);
         } else {
-            if (existingNoDataFilter) existingNoDataFilter.remove();
+            console.warn('deleteOverallMainMapping not available, skipping');
         }
     };
 
-    if (yourPinelabsSearchInput) yourPinelabsSearchInput.addEventListener('input', applyYourPinelabsFilters);
-    if (yourPinelabsBrandFilter) yourPinelabsBrandFilter.addEventListener('change', applyYourPinelabsFilters);
-
-    // Overall Mappings (Admin) Table Logic
-    let currentOverallData = [];
-    let currentOverallPinelabsData = [];
-
-    window.refreshOverallTables = async () => {
-        const overallTableBody = document.getElementById('overall-table-body');
-        const overallPinelabsTableBody = document.getElementById('overall-pinelabs-table-body');
-
-        if (!overallTableBody || !overallPinelabsTableBody) return;
-
+    window.deleteSinglePinelabsDetail = async (detailId) => {
+        if (!confirm('Delete this specific Pine Labs entry?')) return;
         try {
+            const { data: { user } = { user: null } } = await window.supabaseClient.auth.getUser();
+            if (!user) throw new Error('Authentication required.');
+
             const userRole = await window.checkUserRole();
             if (userRole !== 'admin') {
-                overallTableBody.innerHTML = `<tr><td colspan="11" class="empty-state">You do not have permission to view this data.</td></tr>`;
-                overallPinelabsTableBody.innerHTML = `<tr><td colspan="9" class="empty-state">You do not have permission to view this data.</td></tr>`;
-                return;
+                const { data: detail, error: fetchErr } = await window.supabaseClient
+                    .from('pinelabs_details')
+                    .select('mapping_id')
+                    .eq('id', detailId)
+                    .single();
+                if (fetchErr || !detail) throw fetchErr || new Error("Detail not found");
+
+                const { data: mapping, error: mapErr } = await window.supabaseClient
+                    .from('finance_mappings')
+                    .select('user_id')
+                    .eq('id', detail.mapping_id)
+                    .single();
+                if (mapErr || !mapping) throw mapErr || new Error("Associated mapping not found");
+
+                if (mapping.user_id !== user.id) throw new Error('Permission denied.');
             }
 
-            const { data: mappings, error } = await window.supabaseClient
-                .from('finance_mappings')
-                .select(`
-                    id,
-                    store_name,
-                    asm,
-                    mail_id,
-                    brand,
-                    brand_code,
-                    financier,
-                    financier_code,
-                    state,
-                    requested_by,
-                    requested_date,
-                    user_id,
-                    pinelabs_details!pinelabs_details_mapping_id_fkey(*)
-                `)
-                .order('id', { ascending: false });
-
+            const { error } = await window.supabaseClient
+                .from('pinelabs_details')
+                .delete()
+                .eq('id', detailId);
             if (error) throw error;
 
-            currentOverallData = mappings || [];
-            currentOverallPinelabsData = [];
-            currentOverallData.forEach(mapping => {
-                if (mapping.pinelabs_details && mapping.pinelabs_details.length > 0) {
-                    mapping.pinelabs_details.forEach(pl => {
-                        currentOverallPinelabsData.push({
-                            ...pl,
-                            finance_mappings: {
-                                id: mapping.id,
-                                store_name: mapping.store_name,
-                                brand: mapping.brand
-                            }
-                        });
-                    });
-                }
-            });
-
-            window.applyOverallFilters();
-            window.applyOverallPinelabsFilters();
-
+            allPineLabsData = allPineLabsData.filter(pl => pl.id !== detailId);
+            window.filterPineLabsTable();
+            await refreshTables();
+            showToast('Pine Labs entry deleted.', 'success');
         } catch (error) {
-            handleOperationError('Loading overall mappings', error);
-            overallTableBody.innerHTML = `<tr><td colspan="11" class="empty-state">Error loading overall data.</td></tr>`;
-            overallPinelabsTableBody.innerHTML = `<tr><td colspan="9" class="empty-state">Error loading overall Pine Labs data.</td></tr>`;
+            handleOperationError('Delete Pine Labs Entry', error);
         }
     };
 
-    window.populateOverallTable = (mappingsToDisplay) => {
-        const overallTableBody = document.getElementById('overall-table-body');
-        if (!overallTableBody) return;
-
-        overallTableBody.innerHTML = '';
-        const colSpan = overallTableBody.parentElement?.tHead?.rows[0]?.cells.length || 11;
-
-        if (mappingsToDisplay && mappingsToDisplay.length > 0) {
-            mappingsToDisplay.forEach(row => {
-                const tr = overallTableBody.insertRow();
-                let financierDisplay = row.financier && row.financier !== 'none' 
-                    ? row.financier.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) 
-                    : '-';
-                let financierCodeDisplay = row.financier_code || '-';
-
-                const requestedDate = row.requested_date ? new Date(row.requested_date) : null;
-                const formattedDate = requestedDate ? requestedDate.toLocaleDateString() : '-';
-
-                tr.innerHTML = `<td class="table-id-column">${row.id}</td><td>${row.store_name ?? '-'}</td><td>${row.asm ?? '-'}</td><td>${row.mail_id ?? '-'}</td><td data-brand="${row.brand ?? ''}">${row.brand ?? '-'}</td><td>${row.brand === 'Apple' ? (row.brand_code ?? '-') : '-'}</td><td>${financierDisplay}</td><td>${financierCodeDisplay}</td><td class="table-date-column">${formattedDate}</td><td>${row.requested_by ?? '-'}</td><td class="table-actions-column">-</td>`;
-            });
+    // Excel Export
+    const prepareExcelData = (data, type) => {
+        if (type === 'mappings') {
+            return data.map(item => ({
+                'Req ID': item.id,
+                'Store Name': item.store_name,
+                'City': item.city,
+                'Mail ID': item.mail_id,
+                'Brand': item.brand,
+                'Brand Code': item.brand_code,
+                'Financier': item.financier,
+                'Financier Code': item.financier_code,
+                'Requested By': item.requested_by,
+                'Requested Date': item.requested_date ? new Date(item.requested_date).toLocaleDateString() : '-',
+            }));
         } else {
-            overallTableBody.innerHTML = `<tr><td colspan="${colSpan}" class="empty-state">No matching mapping requests found.</td></tr>`;
+            return data.map(item => ({
+                'Store Name': item.finance_mappings?.store_name,
+                'Brand': item.finance_mappings?.brand,
+                'POS ID': item.pos_id,
+                'TID': item.tid,
+                'Serial No': item.serial_no,
+                'Store ID (PL)': item.store_id,
+            }));
         }
     };
 
-    window.applyOverallFilters = () => {
-        const overallSearchInput = document.getElementById('overallSearch');
-        const overallBrandFilter = document.getElementById('overallBrandFilter');
-        const searchTerm = overallSearchInput?.value.toLowerCase() || '';
-        const brandFilter = overallBrandFilter?.value || '';
-
-        const filteredData = currentOverallData.filter(row => {
-            let matchesSearch = searchTerm === '' ||
-                (row.store_name?.toLowerCase().includes(searchTerm)) ||
-                (row.asm?.toLowerCase().includes(searchTerm)) ||
-                (row.mail_id?.toLowerCase().includes(searchTerm)) ||
-                (row.brand?.toLowerCase().includes(searchTerm)) ||
-                (row.financier?.toLowerCase().includes(searchTerm)) ||
-                (row.requested_by?.toLowerCase().includes(searchTerm)) ||
-                (row.id?.toString().includes(searchTerm));
-
-            const matchesBrand = brandFilter === '' || row.brand === brandFilter;
-            return matchesSearch && matchesBrand;
-        });
-
-        window.populateOverallTable(filteredData);
+    const downloadExcel = (data, filename) => {
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+        XLSX.writeFile(wb, filename);
     };
 
-    window.applyOverallPinelabsFilters = () => {
-        const overallPinelabsTableBody = document.getElementById('overall-pinelabs-table-body');
-        const overallBrandFilter = document.getElementById('overallBrandFilter');
-        const overallPinelabsSearchInput = document.getElementById('overallPinelabsSearch');
-        const searchTerm = overallPinelabsSearchInput?.value.toLowerCase() || '';
-        const brandFilter = overallBrandFilter?.value || '';
-
-        let filteredData = currentOverallPinelabsData.filter(pl => {
-            let matchesSearch = searchTerm === '' ||
-                (pl.pos_id?.toLowerCase().includes(searchTerm)) ||
-                (pl.tid?.toLowerCase().includes(searchTerm)) ||
-                (pl.serial_no?.toLowerCase().includes(searchTerm)) ||
-                (pl.store_id?.toLowerCase().includes(searchTerm)) ||
-                (pl.mapping_id?.toString().includes(searchTerm)) ||
-                (pl.id?.toString().includes(searchTerm)) ||
-                (pl.finance_mappings?.store_name?.toLowerCase().includes(searchTerm));
-            const matchesBrand = brandFilter === '' || pl.finance_mappings?.brand === brandFilter;
-            return matchesSearch && matchesBrand;
-        });
-
-        window.populatePinelabsTable(overallPinelabsTableBody, filteredData, { editable: false, isAdminView: true });
-    };
-
-    const overallSearchInput = document.getElementById('overallSearch');
-    const overallBrandFilter = document.getElementById('overallBrandFilter');
-    const overallPinelabsSearchInput = document.getElementById('overallPinelabsSearch');
-
-    if (overallSearchInput) overallSearchInput.addEventListener('input', window.applyOverallFilters);
-    if (overallBrandFilter) {
-        overallBrandFilter.addEventListener('change', () => {
-            window.applyOverallFilters();
-            window.applyOverallPinelabsFilters();
+    // Event Listeners
+    if (elements.mappingForm) {
+        elements.mappingForm.addEventListener('submit', window.handleFormSubmit);
+    }
+    if (elements.brand) {
+        elements.brand.addEventListener('change', () => updateBrandAndFinancierDisplay());
+    }
+    if (elements.financier) {
+        elements.financier.addEventListener('change', () => updateBrandAndFinancierDisplay());
+    }
+    if (elements.addPinelabs) {
+        elements.addPinelabs.addEventListener('click', window.addPinelabsEntryWithRemoveButton);
+    }
+    if (elements.cancelEditBtn) {
+        elements.cancelEditBtn.addEventListener('click', () => {
+            elements.mappingForm.reset();
+            elements.pinelabsEntries.innerHTML = '';
+            window.createEmptyPinelabsEntry();
+            updateBrandAndFinancierDisplay();
+            window.switchFormTab('financier');
+            window.isEditMode = false;
+            elements.cancelEditBtn.classList.add('hidden');
+            elements.submitText.textContent = 'Submit Mapping Request';
         });
     }
-    if (overallPinelabsSearchInput) overallPinelabsSearchInput.addEventListener('input', window.applyOverallPinelabsFilters);
-
-    const downloadExcelBtn = document.getElementById('download-excel');
-    if (downloadExcelBtn) {
-        downloadExcelBtn.addEventListener('click', async () => {
-            try {
-                if (typeof XLSX === 'undefined') throw new Error('Excel library not loaded.');
-
-                const { data: { user } = { user: null }, error: userError } = await window.supabaseClient.auth.getUser();
-                if (!user) {
-                    window.showToast('Please log in to download data.', 'info');
-                    return;
-                }
-
-                const userRole = await window.checkUserRole();
-                let financeDataToExport = [];
-                let pinelabsDataToExport = [];
-
-                if (userRole === 'admin') {
-                    // For admins, use the filtered data from the Overall Mappings and Overall Pine Labs tables
-                    const overallBrandFilterValue = overallBrandFilter?.value || '';
-
-                    // Filter finance data (currentOverallData) based on the brand filter
-                    financeDataToExport = currentOverallData.filter(row => {
-                        const matchesBrand = overallBrandFilterValue === '' || row.brand === overallBrandFilterValue;
-                        return matchesBrand;
-                    });
-
-                    // Filter Pine Labs data (currentOverallPinelabsData) based on the brand filter
-                    pinelabsDataToExport = currentOverallPinelabsData.filter(pl => {
-                        const matchesBrand = overallBrandFilterValue === '' || pl.finance_mappings?.brand === overallBrandFilterValue;
-                        return matchesBrand;
-                    });
-
-                    console.log('[Excel Download] Admin role - Filtered finance data:', financeDataToExport.length, 'rows');
-                    console.log('[Excel Download] Admin role - Filtered Pine Labs data:', pinelabsDataToExport.length, 'rows');
-                } else {
-                    // For non-admins, use the user's own data (already filtered by user_id in loadMappings and loadPineLabsMappings)
-                    financeDataToExport = currentMappingsData;
-                    pinelabsDataToExport = currentPinelabsData;
-
-                    console.log('[Excel Download] User role - Finance data:', financeDataToExport.length, 'rows');
-                    console.log('[Excel Download] User role - Pine Labs data:', pinelabsDataToExport.length, 'rows');
-                }
-
-                // Prepare finance data for export
-                const financeExportData = financeDataToExport.map(m => {
-                    let financierExcelDisplay = m.financier && m.financier !== 'none' 
-                        ? m.financier.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) 
-                        : '-';
-                    if (m.financier === 'none') {
-                        financierExcelDisplay = '-';
-                    }
-
-                    const pinelabsString = m.pinelabs_details?.map(p => 
-                        `POS:${p.pos_id || 'N/A'}, TID:${p.tid || 'N/A'}, SerialNo:${p.serial_no || 'N/A'}, StoreID(PL):${p.store_id || 'N/A'}`
-                    ).join('; ') || '-';
-
-                    return {
-                        ID: m.id,
-                        'Store Name': m.store_name || '-',
-                        'State': m.state || '-',
-                        'ASM': m.asm || '-',
-                        'Mail ID': m.mail_id || '-',
-                        'Brand': m.brand || '-',
-                        'Brand Code (Apple)': m.brand === 'Apple' ? (m.brand_code || '-') : '-',
-                        'Financier': financierExcelDisplay,
-                        'Financier Code': m.financier_code || '-',
-                        'Pine Labs Details': pinelabsString,
-                        'Requested By': m.requested_by || '-',
-                        'Requested Date': m.requested_date ? new Date(m.requested_date).toLocaleDateString() : '-'
-                    };
-                });
-
-                // Prepare Pine Labs data for export
-                const pinelabsExportData = pinelabsDataToExport.map(pl => {
-                    const storeName = pl.finance_mappings?.store_name || '-';
-                    const brand = pl.finance_mappings?.brand || '-';
-                    const mappingIdDisplay = pl.mapping_id || 'N/A';
-
-                    return {
-                        'PL ID': pl.id || '-',
-                        'Mapping ID': mappingIdDisplay,
-                        'Store Name': storeName,
-                        'Brand': brand,
-                        'POS ID': pl.pos_id || '-',
-                        'TID': pl.tid || '-',
-                        'Serial No': pl.serial_no || '-',
-                        'Store ID (PL)': pl.store_id || '-'
-                    };
-                });
-
-                // Check if there's data to export
-                if (financeExportData.length === 0 && pinelabsExportData.length === 0) {
-                    window.showToast('No data to export.', 'info');
-                    return;
-                }
-
-                // Create a new workbook
-                const wb = XLSX.utils.book_new();
-
-                // Add Finance Mappings sheet
-                if (financeExportData.length > 0) {
-                    const financeWs = XLSX.utils.json_to_sheet(financeExportData);
-                    XLSX.utils.book_append_sheet(wb, financeWs, "Finance Mappings");
-                } else {
-                    const financeWs = XLSX.utils.json_to_sheet([{ 'Message': 'No finance mappings data available after filtering.' }]);
-                    XLSX.utils.book_append_sheet(wb, financeWs, "Finance Mappings");
-                }
-
-                // Add Pine Labs Details sheet
-                if (pinelabsExportData.length > 0) {
-                    const pinelabsWs = XLSX.utils.json_to_sheet(pinelabsExportData);
-                    XLSX.utils.book_append_sheet(wb, pinelabsWs, "Pine Labs Details");
-                } else {
-                    const pinelabsWs = XLSX.utils.json_to_sheet([{ 'Message': 'No Pine Labs details available after filtering.' }]);
-                    XLSX.utils.book_append_sheet(wb, pinelabsWs, "Pine Labs Details");
-                }
-
-                // Generate and download the Excel file
-                XLSX.writeFile(wb, `Mappings_Data_${new Date().toISOString().split('T')[0]}.xlsx`);
-                window.showToast('Excel file downloaded successfully!', 'success');
-
-            } catch (err) {
-                window.showToast('Excel export failed: ' + err.message, 'error');
-                console.error('[Excel Download] Error:', err);
-            }
+    if (elements.yourMappingsSearch) {
+        elements.yourMappingsSearch.addEventListener('input', debounce(applyYourMappingsFilter, 300));
+    }
+    if (elements.yourMappingsBrandFilter) {
+        elements.yourMappingsBrandFilter.addEventListener('change', applyYourMappingsFilter);
+    }
+    if (elements.yourPinelabsSearch) {
+        elements.yourPinelabsSearch.addEventListener('input', debounce(() => window.filterPineLabsTable(false), 300));
+    }
+    if (elements.yourPinelabsBrandFilter) {
+        elements.yourPinelabsBrandFilter.addEventListener('change', () => window.filterPineLabsTable(false));
+    }
+    if (elements.overallMainMappingsSearch) {
+        elements.overallMainMappingsSearch.addEventListener('input', debounce(applyOverallMainMappingsFilter, 300));
+    }
+    if (elements.overallMainMappingsBrandFilter) {
+        elements.overallMainMappingsBrandFilter.addEventListener('change', applyOverallMainMappingsFilter);
+    }
+    if (elements.overallPinelabsSearch) {
+        elements.overallPinelabsSearch.addEventListener('input', debounce(() => window.filterPineLabsTable(true), 300));
+    }
+    if (elements.overallPinelabsBrandFilter) {
+        elements.overallPinelabsBrandFilter.addEventListener('change', () => window.filterPineLabsTable(true));
+    }
+    if (elements.downloadExcel) {
+        elements.downloadExcel.addEventListener('click', () => {
+            const data = prepareExcelData(window.navigation?.appState?.currentMappingsData || [], 'mappings');
+            downloadExcel(data, 'Your_Mappings.xlsx');
         });
     }
-    
-    window.initializeApp = async () => {
-        const logoutBtn = document.getElementById('logout-btn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', async () => {
-                const { error } = await window.supabaseClient.auth.signOut();
-                if (error) {
-                    window.showToast('Logout failed: ' + error.message, 'error');
-                } else {
-                    window.location.href = 'login.html';
-                }
-            });
-        }
+    if (elements.downloadOverallMainExcel) {
+        elements.downloadOverallMainExcel.addEventListener('click', () => {
+            const data = prepareExcelData(window.navigation?.appState?.currentOverallMainMappingsData || [], 'mappings');
+            downloadExcel(data, 'Overall_Main_Mappings.xlsx');
+        });
+    }
+    if (elements.downloadOverallPinelabsExcel) {
+        elements.downloadOverallPinelabsExcel.addEventListener('click', () => {
+            const data = prepareExcelData(allPineLabsData, 'pinelabs');
+            downloadExcel(data, 'Overall_Pinelabs_Details.xlsx');
+        });
+    }
+
+    // Initialization
+    try {
+        const { data: { user } } = await window.supabaseClient.auth.getUser();
+        userEmail = user?.email || '';
+        if (elements.mailId) elements.mailId.value = userEmail;
+
         await loadStoreNames();
+        window.createEmptyPinelabsEntry();
         updateBrandAndFinancierDisplay();
-
-        formSection.style.display = 'block';
-        await window.switchMainTab('paper');
-    };
-
-    await window.initializeApp();
-    await window.loadMappings();
-    await window.loadPineLabsMappings();
+        window.switchFormTab('financier'); // Default to financier tab
+        await refreshTables();
+    } catch (error) {   
+        handleOperationError('Initial Setup', error);
+    }
 });
+
+// Add isApplyingFilter to global window object
+window.isApplyingFilter = false;
