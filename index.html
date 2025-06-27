@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- <link rel="icon" type="image/x-icon" href="/favicon.ico"> -->
     <title>Store Mapping Dashboard</title>
     <link rel="stylesheet" href="style.css">
     <style>
@@ -100,6 +99,9 @@
             font-weight: bold;
             transition: all 0.3s ease;
         }
+        
+
+        
         #logout-btn:hover {
             background: linear-gradient(90deg, #00aaff, #00d1b2);
             transform: scale(1.05);
@@ -139,10 +141,10 @@
             position: fixed;
             padding: 15px 30px;
             border-radius: 5px;
-            z-index: 10000; /* Increased z-index */
+            z-index: 10000;
             font-size: 16px;
             text-align: center;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Optional shadow for visibility */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
         .fade-out {
             opacity: 0;
@@ -300,6 +302,61 @@
         }
         .tab:hover:not(.active) {
             background: #3b4a6b;
+        }
+
+        /* New styles for multi-select brand dropdown */
+        .multi-select-container {
+            position: relative;
+            width: 100%;
+        }
+        .multi-select-toggle {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #3b4a6b;
+            border-radius: 6px;
+            background: #2c3e50;
+            color: #e0e0e0;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .multi-select-toggle::after {
+            content: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNhMGFlYzAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cG9seWxpbmUgcG9pbnRzPSI2IDkgMTIgMTUgMTggOSIvPjwvc3ZnPg==');
+            margin-right: 1rem;
+        }
+        .multi-select-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #2c3e50;
+            border: 1px solid #3b4a6b;
+            border-radius: 6px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            margin-top: 4px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        .multi-select-option {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            color: #e0e0e0;
+            transition: background 0.2s ease;
+        }
+        .multi-select-option:hover {
+            background: #3b4a6b;
+        }
+        .multi-select-option input[type="checkbox"] {
+            margin-right: 0.5rem;
+        }
+        .multi-select-option input[type="checkbox"]:checked + span {
+            color: #00d1b2;
+            font-weight: 500;
         }
 
         /* Buttons */
@@ -554,7 +611,6 @@
             #mapping-table-body td:nth-child(8):before { content: "Requested By"; }
             #mapping-table-body td:nth-child(9):before { content: "Requested Date"; }
             #mapping-table-body td:nth-child(10):before { content: "Actions"; }
-            
             #pinelabs-table-body td:nth-child(3):before { content: "Store Name"; }
             #pinelabs-table-body td:nth-child(4):before { content: "Brand"; }
             #pinelabs-table-body td:nth-child(5):before { content: "POS ID"; }
@@ -621,7 +677,17 @@
             table:has(#overall-pinelabs-table-body):not(#overall-mapping-content table) {
                 display: none !important;
             }
-
+            /* Responsive styles for multi-select dropdown */
+            .multi-select-container {
+                width: 100%;
+            }
+            .multi-select-dropdown {
+                width: 100%;
+            }
+            .multi-select-option {
+                font-size: 0.95rem;
+                padding: 0.6rem 1rem;
+            }
         }
     </style>
 </head>
@@ -657,6 +723,7 @@
                     <form id="mapping-form" novalidate>
                         <input type="hidden" id="mapping-id" data-field="mapping-id">   
                         <input type="hidden" id="active-tab" value="financier" data-field="active-tab">
+                        <input type="hidden" id="selected-brands" name="selected_brands" data-field="selected-brands">
 
                         <div class="grid grid-cols-1-md-2 gap-lg mb-lg">
                             <div class="form-group">
@@ -668,7 +735,136 @@
                             </div>
                             <div class="form-group">
                                 <label for="brand">Brand</label>
-                                <select id="brand" name="brand" class="form-control" required data-field="brand">
+                                <!-- Multi-select brand dropdown with checkboxes -->
+                                <div class="multi-select-container">
+                                    <div class="form-control multi-select-toggle" id="brand-toggle">
+                                        Select Brands
+                                    </div>
+                                    <div class="multi-select-dropdown" id="brand-dropdown" style="display: none;">
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Apple">
+                                            <span>Apple</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Asus">
+                                            <span>Asus</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Bluestar">
+                                            <span>Bluestar</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Bosch">
+                                            <span>Bosch</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="BPL">
+                                            <span>BPL</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Carrier">
+                                            <span>Carrier</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Daikin">
+                                            <span>Daikin</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Dell">
+                                            <span>Dell</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Google">
+                                            <span>Google</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Haier">
+                                            <span>Haier</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Hitachi">
+                                            <span>Hitachi</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="HP">
+                                            <span>HP</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="IFB">
+                                            <span>IFB</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Impex">
+                                            <span>Impex</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Lenovo">
+                                            <span>Lenovo</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="LG">
+                                            <span>LG</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Mi">
+                                            <span>Mi</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Mitsubishi">
+                                            <span>Mitsubishi</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Moto">
+                                            <span>Moto</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="OG">
+                                            <span>OG</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Oneplus">
+                                            <span>Oneplus</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Oppo">
+                                            <span>Oppo</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Others">
+                                            <span>Others</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Realme">
+                                            <span>Realme</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Samsung - CD">
+                                            <span>Samsung - CD</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Samsung - Mob">
+                                            <span>Samsung - Mob</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Sony">
+                                            <span>Sony</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Vivo">
+                                            <span>Vivo</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Voltas">
+                                            <span>Voltas</span>
+                                        </div>
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="brands" value="Whirlpool">
+                                            <span>Whirlpool</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Fallback single-select for edit mode -->
+                                <select id="brand-single" name="brand_single" class="form-control hidden" data-field="brand-single">
                                     <option value="">Select Brand</option>
                                     <option value="Apple">Apple</option>
                                     <option value="Asus">Asus</option>
@@ -916,8 +1112,6 @@
                     <table>
                         <thead>
                             <tr>
-                                <!-- <th>PL ID</th>
-                                <th>Mapping ID</th> -->
                                 <th>Store Name</th>
                                 <th>Brand</th>
                                 <th>POS ID</th>
@@ -1048,8 +1242,6 @@
                     <table>
                         <thead>
                             <tr>
-                                <!-- <th>PL ID</th>
-                                <th>Mapping ID</th> -->
                                 <th>Store Name</th>
                                 <th>Brand</th>
                                 <th>POS ID</th>
